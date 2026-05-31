@@ -1,0 +1,14 @@
+name: Trigger Pages sync
+on:
+  push:
+    paths:
+      - transformer_presentation.html
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.PAGES_SYNC_TOKEN }}
+          repository: amirh0ss3in/amirh0ss3in.github.io
+          event-type: atproject-updated
