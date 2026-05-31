@@ -682,88 +682,396 @@ loss = masked_loss / masks.sum()
 </div>
 </section>
 
-<!-- ═══════════════════════════════ PROBING CAPACITY ═══════════════════════════════ -->
+
+<!-- ═══════════════════════════════ PROBE ═══════════════════════════════ -->
 <section id="probe">
 <div class="wrap">
   <span class="tag">Section 07</span>
-  <h2>Probing Capacity: <span class="hl3">The Memorization Trap</span></h2>
+  <h2>Catching the Shortcut: <span class="hl3">The Memorization Probe</span></h2>
 
-  <div class="card rv" style="margin-bottom:1.4rem;">
-    <h3>The Memorization Probe Setup</h3>
-    <p>To determine if the models have actually learned associative recall (matching $x \to y$ in memory) or are simply performing elimination, we construct a probe sequence on the repeated-prompt dataset. Here, the fifth $x$ token repeats $x_1$ ($x_5 = x_1$):</p>
-    <div class="tok-row" style="margin: 1rem 0; gap:3px;">
-      <span class="tok tx">2</span><span class="tok ty">4</span>
-      <span class="tok tx">5</span><span class="tok ty">3</span>
-      <span class="tok tx">4</span><span class="tok ty">5</span>
-      <span class="tok tx">3</span><span class="tok ty">2</span>
-      <span class="tok tx" style="outline: 2px dashed var(--red);">2</span><span class="tok tq">?</span>
-    </div>
-    <div class="g2" style="margin-top:1.2rem; gap:1.4rem;">
-      <div class="note r" style="margin:0;">
-        <strong>The Elimination Shortcut ($y=1$)</strong><br>
-        Since $y \in \{4, 3, 5, 2\}$ have already been output, the only unused element is $y=1$. A pure elimination circuit will choose $y=1$ with absolute certainty.
-      </div>
-      <div class="note g" style="margin:0; border-color:var(--green); background:rgba(78,240,176,.06);">
-        <strong>The Associative Recall Truth ($y=4$)</strong><br>
-        Since $x_5 = 2$, and the context explicitly shows $2 \to 4$ at Step 1, the true mapping is $y_5 = 4$. To get this right, the model must ignore elimination and prioritize memorization.
-      </div>
-    </div>
-    <p style="margin-top:1rem; font-size:.9rem; color:var(--muted);">We trained **both** models on this repeated dataset. Yet, the architectural capacity of the model dictates whether it can solve it.</p>
+  <div class="note rv" style="font-size:.95rem;margin-bottom:1.4rem;">
+    The d=16 model looks impressive — 100% accuracy at step 5, loss well below random. But is it actually learning the mapping, or just tracking which values are used? We need a probe that forces these two strategies to give <em>different</em> answers.
   </div>
 
-  <div class="g2 rv" style="margin-bottom:1.4rem;">
-    <div class="card">
-      <h3>Model 1 ($d=16$, 1 head) — <span class="hl3">Capacity Deficit (Fails)</span></h3>
-      <p style="font-size:.9rem; color:var(--muted); margin-bottom:.8rem;">Even with repeat training, this architecture lacks the representational bandwidth to retain both rules.</p>
-      <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:.8rem;">Probe sequence: [2,4, 5,3, 4,5, 3,2, 2,?] — correct recall = $y=4$</div>
-      <div class="pb-row"><div class="pb-lbl">y=1</div><div class="pb-wrap"><div class="pb-fill" style="width:99.91%;background:var(--red);opacity:.8;"></div></div><div class="pb-val" style="color:var(--red);">0.9991</div><div class="pb-tag" style="color:var(--red);">← elimination trap</div></div>
-      <div class="pb-row"><div class="pb-lbl">y=4</div><div class="pb-wrap"><div class="pb-fill" style="width:0.02%;background:#4a4a7a;"></div></div><div class="pb-val">0.0002</div><div class="pb-tag" style="color:var(--green);">← recall target</div></div>
-      <div class="note r" style="font-size:.88rem;margin-top:1rem;"><strong>Result:</strong> Fails completely. It reverts exclusively to the elimination circuit because $d_{\text{model}}=16$ does not provide enough active dimensions to store the key-value bindings of recall concurrently.</div>
+  <div class="card rv" style="margin-bottom:1.4rem;">
+    <h3>Probe Design — Making Elimination and Recall Contradict Each Other</h3>
+    <p>We take a real test sequence, keep the first 4 pairs intact, then replace x₅ with a repeat of x₁. The correct answer is x₁'s original y — which is already in the "used" set.</p>
+    <pre><span class="cm"># Built programmatically from a real test sequence — no hardcoding</span>
+inputs, targets, _ = test_dataset[<span class="nm">0</span>]
+full_seq = [inputs[<span class="nm">0</span>].item()] + targets.tolist()
+mapping = {full_seq[i]: full_seq[i+<span class="nm">1</span>] <span class="kw">for</span> i <span class="kw">in</span> range(<span class="nm">0</span>, <span class="nm">10</span>, <span class="nm">2</span>)}
+x_order = [full_seq[i] <span class="kw">for</span> i <span class="kw">in</span> range(<span class="nm">0</span>, <span class="nm">10</span>, <span class="nm">2</span>)]
+
+probe_seq = []
+<span class="kw">for</span> x <span class="kw">in</span> x_order[:<span class="nm">4</span>]:           <span class="cm"># first 4 pairs — normal</span>
+    probe_seq.append(x)
+    probe_seq.append(mapping[x])
+probe_seq.append(x_order[<span class="nm">0</span>])       <span class="cm"># x5 = repeat of x1</span>
+probe_seq.append(mapping[x_order[<span class="nm">0</span>]]) <span class="cm"># correct answer if model recalls</span></pre>
+    <div class="g2" style="margin-top:1.2rem;">
+      <div class="note r" style="margin:0;font-size:.9rem;">
+        <strong>What elimination predicts:</strong> By step 5, all 4 other y-values are used. The only unused value is y=1. A pure elimination model picks y=1 with ~100% confidence — wrong.
+      </div>
+      <div class="note g" style="margin:0;font-size:.9rem;">
+        <strong>What recall predicts:</strong> x₅=2 appeared at step 1 where it mapped to y=4. A model with associative memory picks y=4 — even though y=4 is "already used."
+      </div>
     </div>
-    <div class="card">
-      <h3>Model 2 ($d=32$, 2 heads) — <span class="hl2">Dual-Circuits Enabled (Succeeds)</span></h3>
-      <p style="font-size:.9rem; color:var(--muted); margin-bottom:.8rem;">Doubling the model dimension and adding a head allows both algorithms to run in parallel.</p>
-      <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:.8rem;">Probe sequence: [2,4, 5,3, 4,5, 3,2, 2,?] — correct recall = $y=4$</div>
-      <div class="pb-row"><div class="pb-lbl">y=4</div><div class="pb-wrap"><div class="pb-fill" style="width:99.85%;background:var(--green);"></div></div><div class="pb-val" style="color:var(--green);">0.9985</div><div class="pb-tag" style="color:var(--green);">← correct recall!</div></div>
-      <div class="pb-row"><div class="pb-lbl">y=1</div><div class="pb-wrap"><div class="pb-fill" style="width:0.01%;background:#4a4a7a;"></div></div><div class="pb-val">0.000</div><div class="pb-tag" style="color:var(--red);">← elimination</div></div>
-      <div class="note g" style="font-size:.88rem;margin-top:1rem;"><strong>Result:</strong> Achieves a near-perfect recall rate. At $d_{\text{model}}=32$ and with 2 heads, the network successfully decouples the two circuits, allowing the recall mechanism to completely override elimination when a repeated $x$ is queried.</div>
+  </div>
+
+  <div class="card rv" style="margin-bottom:1.4rem;">
+    <h3>The Result — d=16, 1 head, Normal Dataset</h3>
+    <p style="font-size:.9rem;color:var(--muted);margin-bottom:1rem;">Probe sequence: <code>[2, 4, 5, 3, 4, 5, 3, 2, 2, 4]</code> — x=2 repeats, correct recall answer = y=4</p>
+
+    <div class="snav" id="probeNav1">
+      <button class="sbtn on" data-step="0">Step 1 — x=2</button>
+      <button class="sbtn" data-step="1">Step 2 — x=5</button>
+      <button class="sbtn" data-step="2">Step 3 — x=4</button>
+      <button class="sbtn" data-step="3">Step 4 — x=3</button>
+      <button class="sbtn probe" data-step="4">Step 5 — x=2 PROBE</button>
+    </div>
+
+    <div id="probeCard1">
+      <div class="sc on" data-step="0">
+        <div class="g2" style="align-items:start;">
+          <div>
+            <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:1rem;">x=2 | Used y: [] | Target: y=4</div>
+            <div class="pb-row"><div class="pb-lbl">y=1</div><div class="pb-wrap"><div class="pb-fill" style="width:21.4%;background:#4a4a7a;"></div></div><div class="pb-val">0.214</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=2</div><div class="pb-wrap"><div class="pb-fill" style="width:17.1%;background:#4a4a7a;"></div></div><div class="pb-val">0.171</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=3</div><div class="pb-wrap"><div class="pb-fill" style="width:21.3%;background:#4a4a7a;"></div></div><div class="pb-val">0.213</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=4</div><div class="pb-wrap"><div class="pb-fill" style="width:18.7%;background:#4ef0b0;opacity:.7;"></div></div><div class="pb-val" style="color:var(--green);">0.187</div><div class="pb-tag" style="color:var(--green);">✓ target</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=5</div><div class="pb-wrap"><div class="pb-fill" style="width:21.5%;background:#4a4a7a;"></div></div><div class="pb-val">0.215</div></div>
+          </div>
+          <div class="note" style="font-size:.9rem;">No context yet — uniform distribution. Expected.</div>
+        </div>
+      </div>
+      <div class="sc" data-step="1">
+        <div class="g2" style="align-items:start;">
+          <div>
+            <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:1rem;">x=5 | Used y: [4] | Target: y=3</div>
+            <div class="pb-row"><div class="pb-lbl">y=1</div><div class="pb-wrap"><div class="pb-fill" style="width:23.5%;background:#4a4a7a;"></div></div><div class="pb-val">0.235</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=2</div><div class="pb-wrap"><div class="pb-fill" style="width:23.9%;background:#4a4a7a;"></div></div><div class="pb-val">0.239</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=3</div><div class="pb-wrap"><div class="pb-fill" style="width:22.9%;background:#4ef0b0;opacity:.7;"></div></div><div class="pb-val" style="color:var(--green);">0.229</div><div class="pb-tag" style="color:var(--green);">✓ target</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=4</div><div class="pb-wrap"><div class="pb-fill" style="width:0.02%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=5</div><div class="pb-wrap"><div class="pb-fill" style="width:29.6%;background:#4a4a7a;"></div></div><div class="pb-val">0.296</div></div>
+          </div>
+          <div class="note y" style="font-size:.9rem;">y=4 crushed to zero. Elimination working correctly.</div>
+        </div>
+      </div>
+      <div class="sc" data-step="2">
+        <div class="g2" style="align-items:start;">
+          <div>
+            <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:1rem;">x=4 | Used y: [4,3] | Target: y=5</div>
+            <div class="pb-row"><div class="pb-lbl">y=1</div><div class="pb-wrap"><div class="pb-fill" style="width:28.8%;background:#4a4a7a;"></div></div><div class="pb-val">0.288</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=2</div><div class="pb-wrap"><div class="pb-fill" style="width:40.9%;background:#4a4a7a;"></div></div><div class="pb-val">0.409</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=3</div><div class="pb-wrap"><div class="pb-fill" style="width:0.05%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.001</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=4</div><div class="pb-wrap"><div class="pb-fill" style="width:0.06%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.001</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=5</div><div class="pb-wrap"><div class="pb-fill" style="width:30.2%;background:#4ef0b0;opacity:.7;"></div></div><div class="pb-val" style="color:var(--green);">0.302</div><div class="pb-tag" style="color:var(--green);">✓ target</div></div>
+          </div>
+          <div class="note y" style="font-size:.9rem;">Two eliminated. Three remain, spread roughly equally. Rational uncertainty.</div>
+        </div>
+      </div>
+      <div class="sc" data-step="3">
+        <div class="g2" style="align-items:start;">
+          <div>
+            <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:1rem;">x=3 | Used y: [4,3,5] | Target: y=2</div>
+            <div class="pb-row"><div class="pb-lbl">y=1</div><div class="pb-wrap"><div class="pb-fill" style="width:52.5%;background:#f5c842;opacity:.7;"></div></div><div class="pb-val">0.525</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=2</div><div class="pb-wrap"><div class="pb-fill" style="width:47.4%;background:#4ef0b0;opacity:.7;"></div></div><div class="pb-val" style="color:var(--green);">0.474</div><div class="pb-tag" style="color:var(--green);">✓ target</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=3</div><div class="pb-wrap"><div class="pb-fill" style="width:0.06%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.001</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=4</div><div class="pb-wrap"><div class="pb-fill" style="width:0.07%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.001</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=5</div><div class="pb-wrap"><div class="pb-fill" style="width:0.03%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+          </div>
+          <div class="note y" style="font-size:.9rem;">Three eliminated. 50/50 between y=1 and y=2 — correct, x=3 hasn't been seen before.</div>
+        </div>
+      </div>
+      <div class="sc" data-step="4">
+        <div class="g2" style="align-items:start;">
+          <div>
+            <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:1rem;">x=2 REPEATS | Used y: [4,3,5,2] | Recall target: y=4</div>
+            <div class="pb-row"><div class="pb-lbl">y=1</div><div class="pb-wrap"><div class="pb-fill" style="width:99.91%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.9991</div><div class="pb-tag" style="color:var(--red);">← elimination trap!</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=2</div><div class="pb-wrap"><div class="pb-fill" style="width:0.02%;background:var(--red);opacity:.5;"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=3</div><div class="pb-wrap"><div class="pb-fill" style="width:0.02%;background:var(--red);opacity:.5;"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=4</div><div class="pb-wrap"><div class="pb-fill" style="width:0.02%;background:#4a4a7a;"></div></div><div class="pb-val">0.000</div><div class="pb-tag" style="color:var(--green);">← correct recall</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=5</div><div class="pb-wrap"><div class="pb-fill" style="width:0.02%;background:var(--red);opacity:.5;"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+          </div>
+          <div class="note r" style="font-size:.9rem;"><strong>Caught.</strong> The model is 99.91% confident in y=1 — the only unused value. It has no idea x=2 appeared before. It learned elimination only, and elimination is completely wrong here.</div>
+        </div>
+      </div>
     </div>
   </div>
 
   <div class="card rv">
-    <h3>Proving Dual-Circuit Competence in the Larger Model (Model 2)</h3>
-    <p>When evaluated on the test set with the repeated structure, Model 2 successfully deploys both elimination and recall at Step 5. The metrics show precise execution of both processes:</p>
-    
-    <div style="overflow-x:auto; margin:1rem 0;">
+    <h3>Why This Happened — The Training Signal Was Never There</h3>
+    <p>The original dataset contains only valid permutations — every x appears exactly once per sequence. The model was never penalized for ignoring (x→y) associations, because elimination always gave the right answer. There was literally zero gradient signal pushing it toward recall.</p>
+    <div class="note r" style="font-size:.88rem;margin:0;">A model only learns what its training distribution rewards. The recall skill was absent from the reward signal, so the model never developed it — no matter how well it performs on normal sequences.</div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════ REPEATED DATASET ═══════════════════════════════ -->
+<section id="fix">
+<div class="wrap">
+  <span class="tag">Section 08</span>
+  <h2>Task 2: Teaching Recall with <span class="hl2">RepeatedPermutationSequenceDataset</span></h2>
+
+  <div class="card rv" style="margin-bottom:1.4rem;">
+    <h3>The New Dataset — One Class Change</h3>
+    <p>We introduce a modified dataset where 30% of sequences have a repeated x at position 5. Everything else — the mapping split, the interleaving logic, the masking — stays identical.</p>
+    <pre><span class="kw">class</span> <span class="fn">RepeatedPermutationSequenceDataset</span>(Dataset):
+    <span class="kw">def</span> <span class="fn">__getitem__</span>(self, idx):
+        mapping_perm = random.choice(self.mappings)
+        mapping = {x: y <span class="kw">for</span> x, y <span class="kw">in</span> zip(self.elements, mapping_perm)}
+        X_order = list(self.elements)
+        random.shuffle(X_order)
+
+        <span class="kw">if</span> random.random() < self.repeat_ratio:   <span class="cm"># 30% of the time:</span>
+            X_order[<span class="nm">4</span>] = random.choice(X_order[:<span class="nm">4</span>]) <span class="cm"># x5 becomes a copy of x1–x4</span>
+
+        seq = []
+        <span class="kw">for</span> x <span class="kw">in</span> X_order:
+            seq.append(x)
+            seq.append(mapping[x])   <span class="cm"># same mapping — x still maps to the same y</span>
+        <span class="cm"># inputs, targets, mask — identical to before</span></pre>
+
+    <div class="g2" style="margin-top:1.2rem;">
+      <div>
+        <div class="badge bp" style="margin-bottom:.7rem;">Normal sequence (70%)</div>
+        <div class="tok-row" style="gap:3px;margin-bottom:.5rem;">
+          <span class="tok tx">3</span><span class="tok ty">3</span>
+          <span class="tok tx">4</span><span class="tok ty">5</span>
+          <span class="tok tx">2</span><span class="tok ty">1</span>
+          <span class="tok tx">1</span><span class="tok ty">4</span>
+          <span class="tok tx">5</span><span class="tok ty">2</span>
+        </div>
+        <div style="font-size:.82rem;color:var(--muted);font-family:'Space Mono',monospace;">All 5 x values distinct. Elimination is a valid strategy.</div>
+      </div>
+      <div>
+        <div class="badge br" style="margin-bottom:.7rem;">Repeated sequence (30%)</div>
+        <div class="tok-row" style="gap:3px;margin-bottom:.5rem;">
+          <span class="tok tx">3</span><span class="tok ty">3</span>
+          <span class="tok tx">4</span><span class="tok ty">5</span>
+          <span class="tok tx">2</span><span class="tok ty">1</span>
+          <span class="tok tx">1</span><span class="tok ty">4</span>
+          <span class="tok tx" style="outline:2px solid var(--red);">3</span><span class="tok ty" style="outline:2px solid var(--red);">3</span>
+        </div>
+        <div style="font-size:.82rem;color:var(--muted);font-family:'Space Mono',monospace;">x5=3 repeats x1. Elimination gives wrong answer. Only recall works.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="g2 rv" style="margin-bottom:1.4rem;">
+    <div class="card">
+      <h3>Why This Forces the Model to Learn Recall</h3>
+      <p style="font-size:.9rem;">On a repeated sequence, all 4 other y-values will be used by step 5. Elimination says "pick y=1" (the unused one). But the correct answer is the y that x₁ mapped to earlier — which is already used. The model <strong>cannot minimize loss without learning to recall</strong>.</p>
+      <div class="note y" style="font-size:.88rem;margin:0;">This is not a new task — it is the same permutation-lookup task, just with a training distribution that now <em>requires</em> both skills. The gradient signal for recall finally exists.</div>
+    </div>
+    <div class="card">
+      <h3>Train/Test Split — Still Clean</h3>
+      <p style="font-size:.9rem;">The split is on <strong>permutation mappings</strong>, not sequence types. The 24 test permutations are never used during training. The model is tested on mappings it has never seen, regardless of whether normal or repeated sequences appear during training.</p>
+      <div class="note g" style="font-size:.88rem;margin:0;">No data leakage. The test measures whether the recall skill generalizes to new mappings — not memorization of specific (x,y) pairs from training.</div>
+    </div>
+  </div>
+
+  <div class="card rv">
+    <h3>Retraining — New Model, New Dataset</h3>
+    <p style="font-size:.9rem;margin-bottom:1rem;">We also upgrade the model: d=32, nhead=2. Everything else in the training loop is identical.</p>
+    <pre><span class="cm"># New dataset with repeats</span>
+train_dataset = <span class="fn">RepeatedPermutationSequenceDataset</span>(train_mappings, V=V, num_samples=<span class="nm">100000</span>)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=<span class="kw">True</span>)
+
+<span class="cm"># Upgraded model</span>
+model = <span class="fn">MinimalCausalTransformer</span>(vocab_size=V, max_seq_len=<span class="nm">9</span>, d_model=<span class="nm">32</span>, nhead=<span class="nm">2</span>, num_layers=<span class="nm">1</span>).to(device)
+optimizer = optim.Adam(model.parameters(), lr=<span class="nm">0.001</span>)
+epochs = <span class="nm">50</span>
+
+<span class="cm"># Training loop — identical to before</span>
+<span class="kw">for</span> epoch <span class="kw">in</span> range(<span class="nm">1</span>, epochs + <span class="nm">1</span>):
+    <span class="kw">for</span> inputs, targets, masks <span class="kw">in</span> train_loader:
+        logits = model(inputs)
+        loss_elementwise = criterion(logits.view(<span class="nm">-1</span>, logits.size(<span class="nm">-1</span>)), targets.view(<span class="nm">-1</span>))
+        masked_loss = (loss_elementwise * masks.view(<span class="nm">-1</span>)).sum()
+        loss = masked_loss / masks.sum()
+        loss.backward()
+        optimizer.step()</pre>
+
+    <div style="margin-top:1.2rem;">
+      <h3>Loss Curve</h3>
+      <svg viewBox="0 0 860 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:200px;">
+        <line x1="60" y1="20" x2="820" y2="20" stroke="#252540" stroke-width="1"/>
+        <line x1="60" y1="60" x2="820" y2="60" stroke="#252540" stroke-width="1"/>
+        <line x1="60" y1="100" x2="820" y2="100" stroke="#252540" stroke-width="1"/>
+        <line x1="60" y1="140" x2="820" y2="140" stroke="#252540" stroke-width="1"/>
+        <line x1="60" y1="175" x2="820" y2="175" stroke="#252540" stroke-width="1"/>
+        <line x1="60" y1="20" x2="60" y2="180" stroke="#3a3a60" stroke-width="1.5"/>
+        <line x1="60" y1="180" x2="820" y2="180" stroke="#3a3a60" stroke-width="1.5"/>
+        <text x="50" y="24" fill="#5a5a88" font-size="9" text-anchor="end" font-family="Space Mono,monospace">1.25</text>
+        <text x="50" y="64" fill="#5a5a88" font-size="9" text-anchor="end" font-family="Space Mono,monospace">1.10</text>
+        <text x="50" y="104" fill="#5a5a88" font-size="9" text-anchor="end" font-family="Space Mono,monospace">1.00</text>
+        <text x="50" y="144" fill="#5a5a88" font-size="9" text-anchor="end" font-family="Space Mono,monospace">0.97</text>
+        <text x="50" y="179" fill="#5a5a88" font-size="9" text-anchor="end" font-family="Space Mono,monospace">0.956</text>
+        <!-- epoch markers -->
+        <text x="60" y="194" fill="#5a5a88" font-size="9" text-anchor="middle" font-family="Space Mono,monospace">1</text>
+        <text x="211" y="194" fill="#5a5a88" font-size="9" text-anchor="middle" font-family="Space Mono,monospace">10</text>
+        <text x="362" y="194" fill="#5a5a88" font-size="9" text-anchor="middle" font-family="Space Mono,monospace">20</text>
+        <text x="513" y="194" fill="#5a5a88" font-size="9" text-anchor="middle" font-family="Space Mono,monospace">30</text>
+        <text x="664" y="194" fill="#5a5a88" font-size="9" text-anchor="middle" font-family="Space Mono,monospace">40</text>
+        <text x="820" y="194" fill="#5a5a88" font-size="9" text-anchor="middle" font-family="Space Mono,monospace">50</text>
+        <!-- random baseline -->
+        <line x1="60" y1="28" x2="820" y2="28" stroke="#f5607a" stroke-width="1" stroke-dasharray="4,4" opacity="0.5"/>
+        <text x="825" y="32" fill="#f5607a" font-size="8" font-family="Space Mono,monospace">ln(5)=1.61</text>
+        <!-- Task 1 d=16 line: starts 1.25→drops fast to 0.971→plateau ~0.959 -->
+        <polyline points="60,34 211,175 362,176 513,177 664,177 820,177"
+          fill="none" stroke="#8b7cf8" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.7"/>
+        <!-- Task 2 d=32 2h line: starts 1.23→slow drop→sudden drop at epoch 9–10→plateau 0.956 -->
+        <polyline points="60,37 135,100 166,104 181,107 196,109 211,89 226,172 242,174 257,175 272,175 287,175 302,175 317,175 332,175 347,175 362,175 377,175 392,175 407,176 422,176 437,176 452,176 467,176 482,176 497,176 512,176 527,176 542,176 557,176 572,176 587,176 602,176 617,176 632,176 647,176 662,176 677,176 692,176 707,176 722,176 737,176 752,176 767,176 782,176 797,176 820,176"
+          fill="none" stroke="#4ef0b0" stroke-width="2.5"/>
+        <!-- legend -->
+        <line x1="70" y1="210" x2="90" y2="210" stroke="#8b7cf8" stroke-width="1.5" stroke-dasharray="5,3"/>
+        <text x="95" y="214" fill="#c0b4ff" font-size="9" font-family="Space Mono,monospace">d=16, 1h (Task 1)</text>
+        <line x1="220" y1="210" x2="240" y2="210" stroke="#4ef0b0" stroke-width="2.5"/>
+        <text x="245" y="214" fill="#4ef0b0" font-size="9" font-family="Space Mono,monospace">d=32, 2h (Task 2)</text>
+      </svg>
+      <div class="note y" style="font-size:.88rem;margin-top:.8rem;">Notice the sudden drop around epoch 9–10. This is when the model discovers the recall strategy — a phase transition, not a gradual improvement. Both models plateau at ~0.956, but for different reasons.</div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════ RESULTS TASK 2 ═══════════════════════════════ -->
+<section id="results2">
+<div class="wrap">
+  <span class="tag">Section 09</span>
+  <h2>Task 2 Results: <span class="hl2">Both Skills Working</span></h2>
+
+  <p class="rv" style="margin-bottom:1rem;">Test sequence from an unseen permutation: <code>[2,3, 1,5, 5,1, 4,4, 3,2]</code> — mapping: 2→3, 1→5, 5→1, 4→4, 3→2</p>
+
+  <div class="snav rv" id="elimNav2">
+    <button class="sbtn on" data-step="0">Step 1 — x=2</button>
+    <button class="sbtn" data-step="1">Step 2 — x=1</button>
+    <button class="sbtn" data-step="2">Step 3 — x=5</button>
+    <button class="sbtn" data-step="3">Step 4 — x=4</button>
+    <button class="sbtn" data-step="4">Step 5 — x=3</button>
+  </div>
+
+  <div class="card rv" id="elimCard2" style="margin-bottom:1.4rem;">
+    <div class="sc on" data-step="0">
+      <div class="g2" style="align-items:start;">
+        <div>
+          <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:1rem;">x=2 | Used y: [] | Target: y=3</div>
+          <div class="pb-row"><div class="pb-lbl">y=1</div><div class="pb-wrap"><div class="pb-fill" style="width:21.2%;background:#4a4a7a;"></div></div><div class="pb-val">0.212</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=2</div><div class="pb-wrap"><div class="pb-fill" style="width:20.8%;background:#4a4a7a;"></div></div><div class="pb-val">0.208</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=3</div><div class="pb-wrap"><div class="pb-fill" style="width:19.5%;background:#4ef0b0;opacity:.7;"></div></div><div class="pb-val" style="color:var(--green);">0.195</div><div class="pb-tag" style="color:var(--green);">✓ target</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=4</div><div class="pb-wrap"><div class="pb-fill" style="width:18.3%;background:#4a4a7a;"></div></div><div class="pb-val">0.183</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=5</div><div class="pb-wrap"><div class="pb-fill" style="width:20.2%;background:#4a4a7a;"></div></div><div class="pb-val">0.202</div></div>
+        </div>
+        <div class="note" style="font-size:.9rem;">No context — uniform. Same as Task 1. Step 1 is always a blind guess.</div>
+      </div>
+    </div>
+    <div class="sc" data-step="1">
+      <div class="g2" style="align-items:start;">
+        <div>
+          <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:1rem;">x=1 | Used y: [3] | Target: y=5</div>
+          <div class="pb-row"><div class="pb-lbl">y=1</div><div class="pb-wrap"><div class="pb-fill" style="width:25.6%;background:#4a4a7a;"></div></div><div class="pb-val">0.256</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=2</div><div class="pb-wrap"><div class="pb-fill" style="width:26.4%;background:#4a4a7a;"></div></div><div class="pb-val">0.264</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=3</div><div class="pb-wrap"><div class="pb-fill" style="width:0.01%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=4</div><div class="pb-wrap"><div class="pb-fill" style="width:24.4%;background:#4a4a7a;"></div></div><div class="pb-val">0.244</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=5</div><div class="pb-wrap"><div class="pb-fill" style="width:23.6%;background:#4ef0b0;opacity:.7;"></div></div><div class="pb-val" style="color:var(--green);">0.236</div><div class="pb-tag" style="color:var(--green);">✓ target</div></div>
+        </div>
+        <div class="note y" style="font-size:.9rem;">y=3 eliminated. 4 candidates, spread equally. Elimination working.</div>
+      </div>
+    </div>
+    <div class="sc" data-step="2">
+      <div class="g2" style="align-items:start;">
+        <div>
+          <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:1rem;">x=5 | Used y: [3,5] | Target: y=1</div>
+          <div class="pb-row"><div class="pb-lbl">y=1</div><div class="pb-wrap"><div class="pb-fill" style="width:32.9%;background:#4ef0b0;opacity:.7;"></div></div><div class="pb-val" style="color:var(--green);">0.329</div><div class="pb-tag" style="color:var(--green);">✓ target</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=2</div><div class="pb-wrap"><div class="pb-fill" style="width:32.2%;background:#4a4a7a;"></div></div><div class="pb-val">0.322</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=3</div><div class="pb-wrap"><div class="pb-fill" style="width:0.00%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=4</div><div class="pb-wrap"><div class="pb-fill" style="width:34.9%;background:#4a4a7a;"></div></div><div class="pb-val">0.349</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=5</div><div class="pb-wrap"><div class="pb-fill" style="width:0.01%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+        </div>
+        <div class="note y" style="font-size:.9rem;">Two eliminated. Three remain at ~⅓ each. Rational.</div>
+      </div>
+    </div>
+    <div class="sc" data-step="3">
+      <div class="g2" style="align-items:start;">
+        <div>
+          <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:1rem;">x=4 | Used y: [3,5,1] | Target: y=4</div>
+          <div class="pb-row"><div class="pb-lbl">y=1</div><div class="pb-wrap"><div class="pb-fill" style="width:0.00%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=2</div><div class="pb-wrap"><div class="pb-fill" style="width:57.8%;background:#4a4a7a;"></div></div><div class="pb-val">0.578</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=3</div><div class="pb-wrap"><div class="pb-fill" style="width:0.01%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=4</div><div class="pb-wrap"><div class="pb-fill" style="width:42.2%;background:#4ef0b0;opacity:.7;"></div></div><div class="pb-val" style="color:var(--green);">0.422</div><div class="pb-tag" style="color:var(--green);">✓ target</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=5</div><div class="pb-wrap"><div class="pb-fill" style="width:0.00%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+        </div>
+        <div class="note y" style="font-size:.9rem;">Three eliminated. 50/50 between y=2 and y=4. x=4 not seen before — rational.</div>
+      </div>
+    </div>
+    <div class="sc" data-step="4">
+      <div class="g2" style="align-items:start;">
+        <div>
+          <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:1rem;">x=3 | Used y: [3,5,1,4] | Target: y=2</div>
+          <div class="pb-row"><div class="pb-lbl">y=1</div><div class="pb-wrap"><div class="pb-fill" style="width:0.00%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=2</div><div class="pb-wrap"><div class="pb-fill" style="width:99.99%;background:#4ef0b0;"></div></div><div class="pb-val" style="color:var(--green);">0.9999</div><div class="pb-tag" style="color:var(--green);">✓ target</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=3</div><div class="pb-wrap"><div class="pb-fill" style="width:0.00%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=4</div><div class="pb-wrap"><div class="pb-fill" style="width:0.01%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=5</div><div class="pb-wrap"><div class="pb-fill" style="width:0.00%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+        </div>
+        <div class="note g" style="font-size:.9rem;">99.99% — elimination by deduction. Only y=2 remains.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card rv" style="margin-bottom:1.4rem;">
+    <h3>Memorization Probe — Task 2 Model</h3>
+    <p style="font-size:.9rem;color:var(--muted);margin-bottom:1rem;">Same probe design: x₁=2 repeats at step 5. Correct recall answer = y=3. Only unused value = y=2.</p>
+
+    <div class="snav" id="probeNav2">
+      <button class="sbtn on" data-step="0">Steps 1–4</button>
+      <button class="sbtn probe" data-step="1">Step 5 — PROBE</button>
+    </div>
+    <div id="probeCard2">
+      <div class="sc on" data-step="0">
+        <p style="font-size:.9rem;color:var(--muted);margin-bottom:1rem;">Steps 1–4 show normal elimination — identical behaviour to Task 1. Used values are crushed to zero. Probability spreads over remaining candidates.</p>
+        <div style="font-family:'Space Mono',monospace;font-size:12px;line-height:2;color:var(--muted);">
+          Step 1: x=2, y so far=[] → uniform ~20% each<br>
+          Step 2: x=1, y so far=[3] → y=3: 0.000, others ~25% each<br>
+          Step 3: x=5, y so far=[3,5] → y=3,y=5: 0.000, others ~33% each<br>
+          Step 4: x=4, y so far=[3,5,1] → 50/50 between y=2 and y=4
+        </div>
+      </div>
+      <div class="sc" data-step="1">
+        <div class="g2" style="align-items:start;">
+          <div>
+            <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:1rem;">x=2 REPEATS | Used y: [3,5,1,4] | Recall target: y=3</div>
+            <div class="pb-row"><div class="pb-lbl">y=1</div><div class="pb-wrap"><div class="pb-fill" style="width:0.05%;background:var(--red);opacity:.5;"></div></div><div class="pb-val" style="color:var(--red);">0.001</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=2</div><div class="pb-wrap"><div class="pb-fill" style="width:0.00%;background:#4a4a7a;"></div></div><div class="pb-val">0.000</div><div class="pb-tag" style="color:var(--red);">← only unused</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=3</div><div class="pb-wrap"><div class="pb-fill" style="width:99.85%;background:#4ef0b0;"></div></div><div class="pb-val" style="color:var(--green);">0.9985</div><div class="pb-tag" style="color:var(--green);">✓ correct recall!</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=4</div><div class="pb-wrap"><div class="pb-fill" style="width:0.01%;background:var(--red);opacity:.5;"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+            <div class="pb-row"><div class="pb-lbl">y=5</div><div class="pb-wrap"><div class="pb-fill" style="width:0.09%;background:var(--red);opacity:.5;"></div></div><div class="pb-val" style="color:var(--red);">0.001</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+          </div>
+          <div>
+            <div class="note g" style="font-size:.9rem;margin-bottom:.8rem;"><strong>99.85% on y=3</strong> — the correct recall answer, which is already in the used set. The model completely ignores y=2 (the only unused value). It has correctly overridden elimination with recall.</div>
+            <div class="note r" style="font-size:.88rem;">Compare to Task 1: d=16 gave 99.91% on y=1 (elimination). Task 2: d=32+2heads gives 99.85% on y=3 (recall). Complete reversal.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card rv">
+    <h3>Bayesian Accuracy — Formal Evaluation on 5000 Test Sequences</h3>
+    <p style="font-size:.9rem;margin-bottom:1rem;">We evaluate against the theoretically perfect Bayesian distribution at each step — for both subgroups at step 5 (pure elimination vs. memorization).</p>
+    <div style="overflow-x:auto;">
       <table class="ctable">
-        <thead>
-          <tr>
-            <th>Subgroup Evaluated (Model 2)</th>
-            <th>Categorical Accuracy</th>
-            <th>Mean Absolute Error (MAE)</th>
-            <th>Max Absolute Error (Max-AE)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>Step 5 (Pure Elimination Subgroup)</strong></td>
-            <td style="color:var(--green); font-weight:700;">100.00%</td>
-            <td style="font-family:'Space Mono',monospace; color:var(--green);">0.000081</td>
-            <td style="font-family:'Space Mono',monospace; color:var(--purple);">0.001548</td>
-          </tr>
-          <tr>
-            <td><strong>Step 5 (Memorization Subgroup)</strong></td>
-            <td style="color:var(--green); font-weight:700;">100.00%</td>
-            <td style="font-family:'Space Mono',monospace; color:var(--green);">0.000838</td>
-            <td style="font-family:'Space Mono',monospace; color:var(--purple);">0.055650</td>
-          </tr>
-        </tbody>
+        <tr><th>Step</th><th>Categorical Accuracy</th><th>Theoretical Perfect</th><th>MAE</th><th>Max-AE</th></tr>
+        <tr><td style="font-family:'Space Mono',monospace;">1</td><td style="color:var(--yellow);">14.56%</td><td style="color:var(--muted);">20.00%</td><td style="font-family:'Space Mono',monospace;font-size:.85rem;">0.014704</td><td style="font-family:'Space Mono',monospace;font-size:.85rem;">0.055206</td></tr>
+        <tr><td style="font-family:'Space Mono',monospace;">2</td><td style="color:var(--yellow);">16.40%</td><td style="color:var(--muted);">25.00%</td><td style="font-family:'Space Mono',monospace;font-size:.85rem;">0.020145</td><td style="font-family:'Space Mono',monospace;font-size:.85rem;">0.090151</td></tr>
+        <tr><td style="font-family:'Space Mono',monospace;">3</td><td style="color:var(--yellow);">23.36%</td><td style="color:var(--muted);">33.33%</td><td style="font-family:'Space Mono',monospace;font-size:.85rem;">0.021205</td><td style="font-family:'Space Mono',monospace;font-size:.85rem;">0.143933</td></tr>
+        <tr><td style="font-family:'Space Mono',monospace;">4</td><td style="color:var(--yellow);">41.50%</td><td style="color:var(--muted);">50.00%</td><td style="font-family:'Space Mono',monospace;font-size:.85rem;">0.020931</td><td style="font-family:'Space Mono',monospace;font-size:.85rem;">0.168254</td></tr>
+        <tr style="border-top:2px solid var(--border);"><td style="font-family:'Space Mono',monospace;">5 — Elimination subgroup</td><td style="color:var(--green);font-weight:700;">100.00%</td><td style="color:var(--muted);">100.00%</td><td style="font-family:'Space Mono',monospace;font-size:.85rem;color:var(--green);">0.000081</td><td style="font-family:'Space Mono',monospace;font-size:.85rem;color:var(--green);">0.001548</td></tr>
+        <tr><td style="font-family:'Space Mono',monospace;">5 — Memorization subgroup</td><td style="color:var(--green);font-weight:700;">100.00%</td><td style="color:var(--muted);">100.00%</td><td style="font-family:'Space Mono',monospace;font-size:.85rem;color:var(--green);">0.000838</td><td style="font-family:'Space Mono',monospace;font-size:.85rem;color:var(--green);">0.055650</td></tr>
       </table>
     </div>
-    
-    <div class="note g" style="font-size:.9rem; margin:0;">
-      <strong>The Representation Verdict:</strong> Capacity is the ultimate bottleneck. Model 2 achieves a perfect <strong>100.00% accuracy</strong> across both subgroups. The low MAE and Max-AE verify that the model has not simply "hacked" the loss; it acts as a mathematically rigorous Bayesian selector when a token is new, and transitions to a high-confidence associative recall engine when a token is repeated.
-    </div>
+    <div class="note g" style="font-size:.88rem;margin-top:1rem;">Steps 1–4 are not below theoretical because the model genuinely cannot know the mapping without seeing the pair — it's rationally uncertain. But at step 5, in <strong>both</strong> subgroups, it achieves 100% accuracy. It knows when to eliminate and when to recall.</div>
   </div>
 </div>
 </section>
@@ -771,76 +1079,42 @@ loss = masked_loss / masks.sum()
 <!-- ═══════════════════════════════ ATTENTION ═══════════════════════════════ -->
 <section id="attn">
 <div class="wrap">
-  <span class="tag">Section 08</span>
-  <h2><span class="hl4">Attention Maps</span> — Decoupling the Mechanisms</h2>
+  <span class="tag">Section 10</span>
+  <h2><span class="hl4">Attention Maps</span> — Reading the Two Heads</h2>
 
   <div class="card rv" style="margin-bottom:1.4rem;">
-    <h3>Understanding Attention Weight Routing</h3>
-    <p>Each token produces Query (Q), Key (K), and Value (V) vectors. The attention weight between token $i$ and token $j$ represents the dot product of $Q_i \cdot K_j$, scaled and softmaxed. It governs the percentage of information transferred. By looking at these maps, we can mathematically unpack how the models allocate their heads.</p>
+    <h3>What are we actually looking at?</h3>
+    <p>Self-attention lets each token in the sequence ask: "which past tokens should I pay attention to?" The heatmap shows the answer. <strong>Each row is a token asking.</strong> <strong>Each column is a token being looked at.</strong> The number in each cell is the attention weight — how much the row token attends to the column token. Each row sums to 1.0.</p>
+    <p style="font-size:.9rem;">The upper-right triangle is always zero — the causal mask prevents any token from seeing future positions. Only the lower-left triangle matters.</p>
+    <div class="note y" style="font-size:.88rem;margin:0;">A bright cell means "I look a lot at this past token." A dark cell means "I ignore this." By reading the pattern of which tokens look at which, we can infer what each head has learned to do.</div>
   </div>
 
-  <!-- Task 1 Sub-block -->
-  <div style="margin-bottom: 3.5rem;">
-    <h3 style="border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 1.2rem; color: var(--purple);">Task 1: Single-Head Model ($d=16$)</h3>
-    <div class="g2 rv" style="align-items: stretch;">
-      <!-- Left: Map -->
-      <div class="card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
-          <h4 style="font-family:'Syne',sans-serif;font-size:1.15rem;font-weight:700;color:var(--text);">Attention Map</h4>
-          <span class="badge bp">d=16, nhead=1</span>
-        </div>
-        <div style="overflow-x:auto;"><table class="hm" id="h0t"></table></div>
+  <div class="g2 rv" style="margin-bottom:1.4rem;">
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;">
+        <h3 style="margin-bottom:0;">Head 1 — <span style="color:#c0b4ff;">Elimination</span></h3>
+        <span class="badge bp">scans y-history</span>
       </div>
-      <!-- Right: Content -->
-      <div class="card" style="display:flex; flex-direction:column; justify-content:space-between;">
-        <div>
-          <h4 style="font-family:'Syne',sans-serif;font-size:1.15rem;font-weight:700;color:var(--yellow);margin-bottom:.8rem;">Mathematical Pooling in Action</h4>
-          <p style="font-size:.9rem; color:var(--muted); margin-bottom:.5rem;">Observe the weights for the query positions ($x_k$):</p>
-          <ul style="font-size:.85rem; color:var(--muted); margin-left:1.5rem; margin-bottom:.8rem; line-height: 1.8;">
-            <li><strong>$x_2$:</strong> Attends $1.00$ to $y_1$ ($1/1$).</li>
-            <li><strong>$x_3$:</strong> Attends $0.49$ to $y_1$ and $0.51$ to $y_2$ ($\approx 1/2$ each).</li>
-            <li><strong>$x_4$:</strong> Attends $0.34$, $0.31$, $0.35$ to $y_1, y_2, y_3$ ($\approx 1/3$ each).</li>
-            <li><strong>$x_5$:</strong> Attends $0.24$, $0.22$, $0.28$, $0.25$ to $y_1, y_2, y_3, y_4$ ($\approx 1/4$ each).</li>
-          </ul>
-        </div>
-        <div class="note" style="font-size:.88rem;margin:0;">This single head acts as a near-perfect uniform accumulator. By spreading attention evenly across all prior $y$ outputs, the representation at position $x_k$ obtains an unweighted pooled average of the used values, which the linear output layer subsequently suppresses to zero.</div>
+      <div style="overflow-x:auto;"><table class="hm" id="h1t"></table></div>
+      <div style="margin-top:1rem;font-size:.88rem;color:var(--muted);">
+        <strong style="color:var(--text);">The pattern:</strong> Every x token (x2–x5) attends exclusively to previous y tokens — zero on x tokens. This head is scanning all past outputs to build the "used values" list. x2→y1:1.00. x3 splits between y1+y2. x4 spreads over y1+y2+y3. Each x aggregates the full y-history.
+      </div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;">
+        <h3 style="margin-bottom:0;">Head 2 — <span style="color:#f5c842;">Recall</span></h3>
+        <span class="badge by">local (x,y) binding</span>
+      </div>
+      <div style="overflow-x:auto;"><table class="hm" id="h2t"></table></div>
+      <div style="margin-top:1rem;font-size:.88rem;color:var(--muted);">
+        <strong style="color:var(--text);">The pattern:</strong> y tokens attend strongly to themselves (y1→y1:1.00, y2→y2:1.00). x tokens attend to the immediately preceding y. This creates tight local (x,y) bonds — each pair is anchored together. When x repeats, the FFN uses this to retrieve the matching y.
       </div>
     </div>
   </div>
 
-  <!-- Task 2 Sub-block -->
-  <div style="margin-bottom: 2.5rem;">
-    <h3 style="border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 1.2rem; color: var(--purple);">Task 2: Multi-Head Model ($d=32$)</h3>
-    <div class="g2 rv" style="align-items: stretch; margin-bottom: 1.4rem;">
-      <!-- Left: Head 1 -->
-      <div class="card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
-          <h4 style="font-family:'Syne',sans-serif;font-size:1.15rem;font-weight:700;color:var(--text);">Head 1 — Elimination</h4>
-          <span class="badge bp">d=32, nhead=2</span>
-        </div>
-        <div style="overflow-x:auto; margin-bottom: 1rem;"><table class="hm" id="h1t"></table></div>
-        <p style="font-size:.9rem; color:var(--muted); margin-bottom:.5rem;"><strong>Historical Accumulation:</strong> Just like in the single-head model, this head focuses exclusively on $y$ tokens to track and eliminate already-used outputs.</p>
-        <div class="note" style="font-size:.88rem;margin:.8rem 0 0;">The $x$ query rows ignore all other $x$ embeddings and build an average of preceding $y$ outputs, ensuring candidate restriction.</div>
-      </div>
-
-      <!-- Right: Head 2 -->
-      <div class="card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
-          <h4 style="font-family:'Syne',sans-serif;font-size:1.15rem;font-weight:700;color:var(--text);">Head 2 — Recall</h4>
-          <span class="badge by">local (x,y) binding</span>
-        </div>
-        <div style="overflow-x:auto; margin-bottom: 1rem;"><table class="hm" id="h2t"></table></div>
-        <p style="font-size:.9rem; color:var(--muted); margin-bottom:.5rem;"><strong>Local Key-Value Binding:</strong> Here, $y$ tokens attend strongly to themselves ($y_2 \to y_2$: $1.00$) and $x$ tokens attend to the immediately preceding $y$ ($x_3 \to y_2$: $0.66$).</p>
-        <div class="note y" style="font-size:.88rem;margin:.8rem 0 0;">This isolates consecutive $(x, y)$ pairs as unified spatial states, allowing the Feed-Forward Network to recognize repeated tokens.</div>
-      </div>
-    </div>
-
-    <!-- Emergent Modularity card -->
-    <div class="card rv">
-      <h4 style="font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:700;color:var(--yellow);margin-bottom:.8rem;">Head Specialization as an Emergent Modularity</h4>
-      <p>There is no rule in our PyTorch codebase that states "Head 1 must calculate elimination." Both heads are structurally and mathematically identical. Yet across different seeds, gradient descent consistently enforces this division of labor.</p>
-      <div class="note g" style="font-size:.88rem;margin:1rem 0 0;">This functional decoupling is highly robust. When given adequate dimensional space ($d_{\text{model}}=32$), the system naturally resolves the objective by allocating specialized algorithmic roles to separate heads. This emergent specialization fails entirely at $d_{\text{model}}=16$.</div>
-    </div>
+  <div class="card rv">
+    <h3>Why the Heads Sometimes Swap Between Runs</h3>
+    <p>There is nothing in the architecture that forces Head 1 to do elimination and Head 2 to do recall. The two heads are mathematically symmetric. Across different random seeds, gradient descent sometimes assigns the roles the other way around. The <strong>functional split is always the same</strong> — only the head number changes. This is actually strong evidence that the specialization is robust: the model always converges to this two-role solution, it just doesn't care which head gets which job.</p>
   </div>
 </div>
 </section>
@@ -848,118 +1122,90 @@ loss = masked_loss / masks.sum()
 <!-- ═══════════════════════════════ RECALL MECHANISM ═══════════════════════════════ -->
 <section id="mech">
 <div class="wrap">
-  <span class="tag">Section 09</span>
-  <h2>How <span class="hl2">Recall</span> Actually Works — Attention + FFN</h2>
+  <span class="tag">Section 11</span>
+  <h2>How Recall Actually Works — <span class="hl2">Attention + FFN Together</span></h2>
 
-  <div class="note rv" style="font-size:.95rem;margin-bottom:1.4rem;">The attention map for the recall head shows a suspicious pattern: $x$ tokens attend to the immediately preceding $y$, not to an earlier $x_1$. So how does the model recall $y_1$ when $x_1$ repeats? The answer is that attention and the FFN do different jobs.</div>
+  <div class="note rv" style="font-size:.95rem;margin-bottom:1.4rem;">The recall head attends to the immediately preceding y — not to the original x₁. So how does the model recall y₁ when x₁ repeats at position 8? The answer is that attention and the FFN play different roles.</div>
 
-  <div class="card rv" style="margin-bottom:1.4rem;">
-    <h3>Step 1: What Attention Does</h3>
-    <p>The recall head (Head 2) creates tight <strong>local bonds</strong> between consecutive ($x, y$) pairs. Specifically:</p>
-    <div style="background:var(--surf2);border-radius:8px;padding:1rem 1.3rem;margin:.8rem 0;font-family:'Space Mono',monospace;font-size:12px;line-height:2.2;">
-      <div>y₁ attends to itself: <span style="color:var(--green);">1.00</span> → y₁'s output representation is strongly self-anchored</div>
-      <div>x₂ attends to y₁: <span style="color:var(--green);">1.00</span> → x₂ absorbs y₁'s representation</div>
-      <div>y₂ attends to itself: <span style="color:var(--green);">1.00</span> → y₂ is self-anchored</div>
-      <div>x₃ attends to y₂: <span style="color:var(--green);">0.66</span> → x₃ absorbs y₂'s representation</div>
+  <div class="g2 rv" style="margin-bottom:1.4rem;">
+    <div class="card">
+      <h3>What Attention Does</h3>
+      <p style="font-size:.9rem;">The recall head creates tight local bonds. Each y attends to itself with near-1.0 weight — making each y's representation a stable, self-anchored vector. Each x then absorbs the representation of its preceding y.</p>
+      <div style="background:var(--surf2);border-radius:8px;padding:1rem;margin:.8rem 0;font-family:'Space Mono',monospace;font-size:12px;line-height:2.1;">
+        <div>y₁ → self: <span style="color:var(--green);">1.00</span> → y₁ is self-anchored</div>
+        <div>x₂ → y₁: <span style="color:var(--green);">1.00</span> → x₂ absorbs y₁'s representation</div>
+        <div>y₂ → self: <span style="color:var(--green);">1.00</span> → y₂ is self-anchored</div>
+        <div>x₃ → y₂: <span style="color:var(--green);">1.00</span> → x₃ absorbs y₂'s representation</div>
+      </div>
+      <p style="font-size:.88rem;color:var(--muted);">Each (x, y) pair becomes encoded as a unit. The x's post-attention representation carries the y that came right before it.</p>
     </div>
-    <p style="font-size:.9rem;">This creates a chain: each $x$ token's post-attention representation is heavily colored by the $y$ token that preceded it. The ($x, y$) pair is encoded as a unit.</p>
-  </div>
-
-  <div class="card rv" style="margin-bottom:1.4rem;">
-    <h3>Step 2: What the FFN Does</h3>
-    <p>After attention, each token passes through the Feed-Forward Network — two linear layers with a ReLU in between. The FFN is applied <strong>independently to each position</strong> (it does not mix information between positions).</p>
-    <p>Research on transformers (Geva et al., 2021: "Transformer Feed-Forward Layers Are Key-Value Memories") has shown that FFN layers act as <strong>associative memories</strong>: the first layer's weights are "keys" and the second layer's weights are "values." The FFN learns to map input patterns to output content.</p>
-    <div class="note" style="font-size:.88rem;">When $x_1$ repeats at position 8, its token embedding is identical to when it first appeared. The FFN — acting as a key-value store — recognizes this embedding pattern and returns $y_1$'s value, regardless of what elimination would suggest.</div>
-  </div>
-
-  <div class="card rv" style="margin-bottom:1.4rem;">
-    <h3>The Full Recall Mechanism</h3>
-    <div style="position:relative;padding-left:2rem;">
-      <div style="position:absolute;left:0;top:6px;bottom:6px;width:2px;background:linear-gradient(180deg,var(--purple),var(--green));border-radius:2px;"></div>
-      <div style="margin-bottom:1.4rem;padding-left:.5rem;">
-        <h3 style="color:var(--text);font-size:1rem;">Training on repeated sequences</h3>
-        <p style="font-size:.9rem;">The model sees thousands of examples where $x$ repeats and the correct answer is the <em>earlier</em> $y$ — not the unused one. This creates a loss signal that pure elimination cannot minimize.</p>
-      </div>
-      <div style="margin-bottom:1.4rem;padding-left:.5rem;">
-        <h3 style="color:var(--text);font-size:1rem;">Head 2 forms (x,y) local bonds via attention</h3>
-        <p style="font-size:.9rem;">Each $y$ position's representation becomes a stable anchor for its value (strong self-attention). Each $x$ absorbs its preceding $y$. The pair is encoded as a unit in the residual stream.</p>
-      </div>
-      <div style="margin-bottom:1.4rem;padding-left:.5rem;">
-        <h3 style="color:var(--text);font-size:1rem;">FFN performs associative lookup</h3>
-        <p style="font-size:.9rem;">When $x_1$ repeats at position 8, its token embedding is identical to when it first appeared. The FFN recognizes this embedding pattern and returns $y_1$'s value, regardless of what elimination would suggest.</p>
-      </div>
-      <div style="padding-left:.5rem;">
-        <h3 style="color:var(--text);font-size:1rem;">Head 1's elimination signal is overridden</h3>
-        <p style="font-size:.9rem;">Both signals feed into the final prediction. When recall is strong (99.9%), it dominates even though elimination says "pick the unused value." The model has learned to trust recall when the context demands it.</p>
-      </div>
+    <div class="card">
+      <h3>What the FFN Does</h3>
+      <p style="font-size:.9rem;">After attention, each token passes through the Feed-Forward Network — two linear layers with ReLU. The FFN is applied independently to each position. It does not mix information between positions.</p>
+      <p style="font-size:.9rem;">Research (Geva et al., 2021) shows FFN layers act as key-value memories: the first layer's weights are "keys", the second layer's weights are "values." The FFN learns to map specific input patterns to specific output content.</p>
+      <div class="note" style="font-size:.88rem;margin:0;">When x₁ repeats at position 8, its token embedding is <em>identical</em> to when it first appeared. The FFN recognizes this embedding and routes it to y₁'s value — regardless of what elimination suggests.</div>
     </div>
   </div>
 
   <div class="card rv">
-    <h3>Why we can't be 100% certain it's the FFN</h3>
-    <p style="font-size:.9rem;">We can observe the attention weights directly — that's what the heatmaps show. But the FFN's internal operation is less transparent. What we <em>can</em> say confidently:</p>
+    <h3>Why We Can't Be 100% Certain It's the FFN</h3>
+    <p style="font-size:.9rem;">The attention weights are directly readable — that's what the heatmaps show. The FFN's internal operation is less transparent. What we can say:</p>
     <div class="g2" style="margin-top:.8rem;">
-      <div class="note g" style="font-size:.88rem;margin:0;"><strong>Confirmed:</strong> The recall head's attention pattern (local $x\to\text{preceding } y$ bonding) is necessary but not sufficient. Attention alone cannot perform a lookup to an $x$-position that isn't being attended to.</div>
-      <div class="note y" style="font-size:.88rem;margin:0;"><strong>Strongly implied:</strong> The FFN must be completing the recall — it's the only other component with the capacity to perform position-independent associative lookups. This is consistent with Geva et al. (2021) and follow-up work on transformer memory.</div>
+      <div class="note g" style="font-size:.88rem;margin:0;"><strong>Confirmed from attention:</strong> The recall head creates local (x,y) bonds. This is necessary but not sufficient — attention alone cannot reach back to a position it's not attending to.</div>
+      <div class="note y" style="font-size:.88rem;margin:0;"><strong>Strongly implied:</strong> The FFN must complete the recall. It's the only remaining component with the capacity for position-independent associative lookup. This is consistent with Geva et al. (2021) and follow-up transformer memory research.</div>
     </div>
   </div>
 </div>
 </section>
 
-<!-- SUMMARY -->
+<!-- ═══════════════════════════════ SUMMARY ═══════════════════════════════ -->
 <section id="summary">
 <div class="wrap">
-  <span class="tag">Section 10</span>
+  <span class="tag">Section 12</span>
   <h2><span class="hl2">Summary</span> — The Full Story</h2>
 
   <div class="g2 rv" style="margin-bottom:1.4rem;">
     <div>
       <div class="card" style="margin-bottom:1.2rem;">
-        <h3>What We Built</h3>
-        <p style="font-size:.9rem;">A minimal causal transformer (1 layer, $d=32$, 2 heads) trained on a permutation-lookup task — the model must read ($x,y$) pairs from context and answer queries on unseen permutations.</p>
+        <h3>Task 1 — d=16, 1 head, Normal Dataset</h3>
+        <p style="font-size:.9rem;">Model trains on clean permutation sequences. Learns elimination perfectly — crushed used values, 100% accuracy at step 5 by deduction. Fails the memorization probe completely (99.91% on the wrong answer). The training signal never rewarded recall, so the model never learned it.</p>
       </div>
       <div class="card" style="margin-bottom:1.2rem;">
-        <h3>Results Comparison</h3>
-        <table class="ctable">
-          <tr><th>Config</th><th>Elimination</th><th>Recall Probe Acc.</th><th>Test Loss</th></tr>
-          <tr><td style="font-family:'Space Mono',monospace;font-size:11px;">$d=16$, 1h, repeated</td><td style="color:var(--green);">✓ 100.00%</td><td style="color:var(--red);">✗ 0.01%</td><td style="font-family:'Space Mono',monospace;font-size:11px;">0.959</td></tr>
-          <tr><td style="font-family:'Space Mono',monospace;font-size:11px;">$d=32$, 2h, repeated</td><td style="color:var(--green);">✓ 100.00%</td><td style="color:var(--green); font-weight:700;">✓ 100.00%</td><td style="font-family:'Space Mono',monospace;font-size:11px;">0.956</td></tr>
-        </table>
+        <h3>Task 2 — d=32, 2 heads, Repeated Dataset</h3>
+        <p style="font-size:.9rem;">Model trains on sequences where 30% have a repeated x. Now recall is required to minimize loss. The model discovers both skills. Memorization probe: 99.85% on the correct recalled value. Formal evaluation: 100% accuracy on both elimination subgroup and memorization subgroup at step 5.</p>
       </div>
       <div class="card">
-        <h3>Key Numbers</h3>
-        <div style="font-family:'Space Mono',monospace;font-size:12px;line-height:2.2;color:var(--muted);">
-          <div>Random baseline loss: <span style="color:var(--text);">ln(5) = 1.609</span></div>
-          <div>Pure elimination ceiling: <span style="color:var(--text);">≈ 0.957</span></div>
-          <div>Final model loss: <span style="color:var(--green);">0.956</span></div>
-          <div>Step 5 Memorization Probe MAE: <span style="color:var(--green);">0.000838</span></div>
-        </div>
+        <h3>The Numbers</h3>
+        <table class="ctable">
+          <tr><th>Config</th><th>Elim</th><th>Recall</th><th>Loss</th></tr>
+          <tr><td style="font-family:'Space Mono',monospace;font-size:11px;">d=16, 1h, normal</td><td style="color:var(--green);">✓ 100%</td><td style="color:var(--red);">✗ 0%</td><td style="font-family:'Space Mono',monospace;font-size:11px;">~0.959</td></tr>
+          <tr><td style="font-family:'Space Mono',monospace;font-size:11px;">d=32, 2h, repeated</td><td style="color:var(--green);">✓ 100%</td><td style="color:var(--green);">✓ 100%</td><td style="font-family:'Space Mono',monospace;font-size:11px;">~0.956</td></tr>
+        </table>
       </div>
     </div>
-
     <div>
       <div class="card">
         <h3>The 5 Core Findings</h3>
         <div style="margin-top:.5rem;">
           <div style="display:flex;gap:.8rem;margin-bottom:1rem;align-items:flex-start;">
             <span class="badge bp" style="flex-shrink:0;margin-top:2px;">1</span>
-            <p style="font-size:.88rem;margin:0;"><strong>Loss can be misleading.</strong> The $d=16$ model achieves near-identical loss yet fails completely at recall. You must probe to understand the mechanism.</p>
+            <p style="font-size:.88rem;margin:0;"><strong>Loss alone is misleading.</strong> Both models plateau near 0.959. You must probe to understand what the model actually learned.</p>
           </div>
           <div style="display:flex;gap:.8rem;margin-bottom:1rem;align-items:flex-start;">
             <span class="badge by" style="flex-shrink:0;margin-top:2px;">2</span>
-            <p style="font-size:.88rem;margin:0;"><strong>Models learn what training rewards.</strong> Without repeated sequences there is zero gradient signal toward recall. Add the signal → the model finds the skill.</p>
+            <p style="font-size:.88rem;margin:0;"><strong>Models learn what training rewards.</strong> No repeated sequences → no gradient toward recall → model never learns it. Add the signal → the skill appears.</p>
           </div>
           <div style="display:flex;gap:.8rem;margin-bottom:1rem;align-items:flex-start;">
             <span class="badge bg" style="flex-shrink:0;margin-top:2px;">3</span>
-            <p style="font-size:.88rem;margin:0;"><strong>The second head enabled a qualitative leap.</strong> Not just more capacity — a structurally different computation. One head for elimination, one for recall.</p>
+            <p style="font-size:.88rem;margin:0;"><strong>Two heads enable a qualitative leap.</strong> Not just more capacity — a structurally different computation. One head per skill, discovered autonomously.</p>
           </div>
           <div style="display:flex;gap:.8rem;margin-bottom:1rem;align-items:flex-start;">
             <span class="badge br" style="flex-shrink:0;margin-top:2px;">4</span>
-            <p style="font-size:.88rem;margin:0;"><strong>Head specialization is emergent and robust.</strong> No head was told its role. The split appears consistently — only the head numbering varies across seeds.</p>
+            <p style="font-size:.88rem;margin:0;"><strong>Specialization is emergent and robust.</strong> No head was told its role. Across random seeds, the same split always appears — just with head labels swapped.</p>
           </div>
           <div style="display:flex;gap:.8rem;align-items:flex-start;">
             <span class="badge bp" style="flex-shrink:0;margin-top:2px;">5</span>
-            <p style="font-size:.88rem;margin:0;"><strong>Recall is attention + FFN together.</strong> Attention forms the associations; the FFN performs the lookup. Neither is sufficient alone.</p>
+            <p style="font-size:.88rem;margin:0;"><strong>Recall requires attention + FFN together.</strong> Attention forms the (x,y) bonds; the FFN performs the associative lookup. Neither is sufficient alone.</p>
           </div>
         </div>
       </div>
@@ -969,37 +1215,102 @@ loss = masked_loss / masks.sum()
   <div class="card rv" style="text-align:center;padding:3rem;">
     <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.2em;text-transform:uppercase;margin-bottom:1rem;">Core insight</div>
     <p style="font-family:'Syne',sans-serif;font-size:clamp(1.1rem,2.2vw,1.65rem);font-weight:700;line-height:1.45;max-width:720px;margin:0 auto;">
-      Multi-head attention discovers <span class="hl">complementary functional roles</span> without being told to — one head tracking what has been used, one binding what belongs together. This <span class="hl2">emergent modularity</span> is not designed. It is found. And it only appears when the training data actually requires it.
+      Multi-head attention discovers <span class="hl">complementary functional roles</span> without being told to. One head tracks what has been used. One head binds what belongs together. This <span class="hl2">emergent modularity</span> is not designed — it is found. And it only appears when the training data actually requires it.
     </p>
   </div>
 </div>
 </section>
 
 <div style="height:56px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:center;">
-  <span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.1em;">Minimal Transformer Interpretability — d=32, nhead=2, 1 layer, V=5, 50 epochs, repeat_ratio=0.30</span>
+  <span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.1em;">Task 1: d=16, nhead=1, 1 layer, normal data, 20 epochs &nbsp;|&nbsp; Task 2: d=32, nhead=2, 1 layer, repeated data (ratio=0.3), 50 epochs</span>
 </div>
 
 <script>
 const ro=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('vis');}),{threshold:.08});
 document.querySelectorAll('.rv').forEach(el=>ro.observe(el));
-document.querySelectorAll('.snav .sbtn').forEach(btn=>{
-  btn.addEventListener('click',function(){
-    const nav=this.closest('.snav');
-    const card=nav.nextElementSibling;
-    nav.querySelectorAll('.sbtn').forEach(b=>b.classList.remove('on'));
-    this.classList.add('on');
-    const s=this.dataset.step;
-    card.querySelectorAll('.sc').forEach(c=>c.classList.remove('on'));
-    card.querySelector('[data-step="'+s+'"]').classList.add('on');
+
+// Generic step nav wiring
+function wireNav(navId, cardId) {
+  const nav = document.getElementById(navId);
+  const card = document.getElementById(cardId);
+  if (!nav || !card) return;
+  nav.querySelectorAll('.sbtn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      nav.querySelectorAll('.sbtn').forEach(b => b.classList.remove('on'));
+      this.classList.add('on');
+      const s = this.dataset.step;
+      card.querySelectorAll('.sc').forEach(c => c.classList.remove('on'));
+      card.querySelector('[data-step="'+s+'"]').classList.add('on');
+    });
+  });
+}
+wireNav('probeNav1','probeCard1');
+wireNav('elimNav2','elimCard2');
+wireNav('probeNav2','probeCard2');
+// Also wire the existing elimNav from section 6 if present
+document.querySelectorAll('.snav').forEach(nav => {
+  const card = nav.nextElementSibling;
+  if (!card) return;
+  nav.querySelectorAll('.sbtn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      nav.querySelectorAll('.sbtn').forEach(b => b.classList.remove('on'));
+      this.classList.add('on');
+      const s = this.dataset.step;
+      if (card.querySelector('[data-step="'+s+'"]')) {
+        card.querySelectorAll('.sc').forEach(c => c.classList.remove('on'));
+        card.querySelector('[data-step="'+s+'"]').classList.add('on');
+      }
+    });
   });
 });
+
+// Heatmap data — Task 2 model (d=32, nhead=2) from PDF run
+// Sequence: [2,3, 1,5, 5,1, 4,4, 3,2]
 const labels=['x1','y1','x2','y2','x3','y3','x4','y4','x5'];
-const h0=[[1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.76,0.24,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.49,0.01,0.50,0.0,0.0,0.0,0.0,0.0],[0.0,0.49,0.0,0.51,0.0,0.0,0.0,0.0,0.0],[0.11,0.21,0.17,0.17,0.09,0.25,0.0,0.0,0.0],[0.0,0.34,0.0,0.31,0.0,0.35,0.0,0.0,0.0],[0.05,0.10,0.04,0.13,0.07,0.28,0.31,0.02,0.0],[0.0,0.24,0.0,0.22,0.0,0.28,0.0,0.25,0.0]];
-const h1=[[1,0,0,0,0,0,0,0,0],[.64,.36,0,0,0,0,0,0,0],[.18,.64,.18,0,0,0,0,0,0],[.25,.32,.17,.27,0,0,0,0,0],[.09,.41,.08,.34,.07,0,0,0,0],[.03,.29,.03,.23,.04,.37,0,0,0],[.05,.23,.05,.33,.05,.26,.03,0,0],[.14,.10,.14,.13,.17,.09,.14,.09,0],[.01,.29,.01,.17,.01,.38,0,.13,.01]];
-const h2=[[1,0,0,0,0,0,0,0,0],[0,1,0,0,0,0,0,0,0],[0,1,0,0,0,0,0,0,0],[0,0,0,1,0,0,0,0,0],[0,0,0,1,0,0,0,0,0],[0,0,.66,0,0,.34,0,0,0],[0,.68,0,.32,0,0,0,.01,0],[0,0,0,0,0,0,.52,.48,0],[.01,.01,0,0,.01,0,0,0,.97]];
-function vc(v){if(v<.005)return'rgba(12,10,30,.5)';const t=Math.min(v,1);if(t<.3){const s=t/.3;return`rgba(${Math.round(40+s*30)},${Math.round(20+s*90)},${Math.round(90+s*80)},.92)`;}if(t<.7){const s=(t-.3)/.4;return`rgba(${Math.round(70+s*30)},${Math.round(110+s*110)},${Math.round(170-s*50)},.92)`;}const s=(t-.7)/.3;return`rgba(${Math.round(100+s*145)},${Math.round(220+s*25)},${Math.round(120-s*95)},.95)`;}
-function buildHM(el,data){const hr=document.createElement('tr');hr.appendChild(document.createElement('th'));labels.forEach(l=>{const th=document.createElement('th');th.textContent=l;hr.appendChild(th);});el.appendChild(hr);data.forEach((row,i)=>{const tr=document.createElement('tr');const lbl=document.createElement('th');lbl.textContent=labels[i];tr.appendChild(lbl);row.forEach((v,j)=>{const td=document.createElement('td');if(j<=i){td.style.background=vc(v);td.textContent=v>.005?v.toFixed(2):'';td.style.color=v>.55?'rgba(0,0,0,.85)':'rgba(255,255,255,.9)';}tr.appendChild(td);});el.appendChild(tr);});}
-buildHM(document.getElementById('h0t'),h0);
+const h1=[
+  [1.00,0,0,0,0,0,0,0,0],
+  [0.64,0.36,0,0,0,0,0,0,0],
+  [0.18,0.64,0.18,0,0,0,0,0,0],
+  [0.25,0.32,0.17,0.27,0,0,0,0,0],
+  [0.09,0.41,0.08,0.34,0.07,0,0,0,0],
+  [0.03,0.29,0.03,0.23,0.04,0.37,0,0,0],
+  [0.05,0.23,0.05,0.33,0.05,0.26,0.03,0,0],
+  [0.14,0.10,0.14,0.13,0.17,0.09,0.14,0.09,0],
+  [0.01,0.29,0.01,0.17,0.01,0.38,0.00,0.13,0.01],
+];
+const h2=[
+  [1.00,0,0,0,0,0,0,0,0],
+  [0.00,1.00,0,0,0,0,0,0,0],
+  [0.00,1.00,0.00,0,0,0,0,0,0],
+  [0.00,0.00,0.00,1.00,0,0,0,0,0],
+  [0.00,0.00,0.00,1.00,0.00,0,0,0,0],
+  [0.00,0.00,0.00,0.66,0.00,0.34,0,0,0],
+  [0.00,0.68,0.00,0.32,0.00,0.00,0.01,0,0],
+  [0.00,0.00,0.00,0.00,0.00,0.00,0.52,0.48,0],
+  [0.01,0.01,0.00,0.00,0.01,0.00,0.00,0.00,0.97],
+];
+function vc(v){
+  if(v<.005)return'rgba(12,10,30,.5)';
+  const t=Math.min(v,1);
+  if(t<.3){const s=t/.3;return`rgba(${Math.round(40+s*30)},${Math.round(20+s*90)},${Math.round(90+s*80)},.92)`;}
+  if(t<.7){const s=(t-.3)/.4;return`rgba(${Math.round(70+s*30)},${Math.round(110+s*110)},${Math.round(170-s*50)},.92)`;}
+  const s=(t-.7)/.3;return`rgba(${Math.round(100+s*145)},${Math.round(220+s*25)},${Math.round(120-s*95)},.95)`;
+}
+function buildHM(el,data){
+  const hr=document.createElement('tr');hr.appendChild(document.createElement('th'));
+  labels.forEach(l=>{const th=document.createElement('th');th.textContent=l;hr.appendChild(th);});
+  el.appendChild(hr);
+  data.forEach((row,i)=>{
+    const tr=document.createElement('tr');
+    const lbl=document.createElement('th');lbl.textContent=labels[i];tr.appendChild(lbl);
+    row.forEach((v,j)=>{
+      const td=document.createElement('td');
+      if(j<=i){td.style.background=vc(v);td.textContent=v>.005?v.toFixed(2):'';td.style.color=v>.55?'rgba(0,0,0,.85)':'rgba(255,255,255,.9)';}
+      tr.appendChild(td);
+    });
+    el.appendChild(tr);
+  });
+}
 buildHM(document.getElementById('h1t'),h1);
 buildHM(document.getElementById('h2t'),h2);
 </script>
