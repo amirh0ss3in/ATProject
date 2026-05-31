@@ -245,6 +245,29 @@ table.hm td{width:44px;height:36px;text-align:center;font-size:10px;font-weight:
     </div>
   </div>
 
+    <div class="card rv" style="margin-bottom:1.4rem;">
+    <h3>Why is $V=5$ the Optimal Choice?</h3>
+    <p>Choosing a vocabulary size of $V=5$ and configuring the dataloader's epoch sizes represent a deliberate balance between computational simplicity, architectural capacity constraints, and optimization stability.</p>
+    <div class="g2" style="margin-top: 1rem;">
+      <div style="padding:.9rem;background:var(--surf2);border-radius:8px;border:1px solid var(--border);">
+        <div class="badge bp" style="margin-bottom:.6rem;">Combinatorial Space</div>
+        <p style="font-size:.88rem;margin:0;">There are $5! = 120$ possible permutation mappings. Shuffling the input order ($5! = 120$) yields $120 \times 120 = 14,400$ total unique sequence configurations, providing a diverse training space.</p>
+      </div>
+      <div style="padding:.9rem;background:var(--surf2);border-radius:8px;border:1px solid var(--border);">
+        <div class="badge by" style="margin-bottom:.6rem;">Preventing Weight Memorization</div>
+        <p style="font-size:.88rem;margin:0;">At $V=4$ ($24$ permutations), the mappings are fewer than the model's intermediate dimensions ($d_{\text{model}}=32, d_{\text{ff}}=64$), allowing neurons to hardcode each rule. At $V=5$, the 120 permutations outnumber these dimensions, forcing the model to learn a compact in-context retrieval algorithm.</p>
+      </div>
+      <div style="padding:.9rem;background:var(--surf2);border-radius:8px;border:1px solid var(--border);">
+        <div class="badge bg" style="margin-bottom:.6rem;">Optimization Dynamics</div>
+        <p style="font-size:.88rem;margin:0;">With $100,000$ training samples per epoch, the model sees each unique training configuration ($11,520$) roughly $8.7$ times. This high density provides the Adam optimizer with stable, smoothed gradient updates, helping the narrow network avoid bad local minima.</p>
+      </div>
+      <div style="padding:.9rem;background:var(--surf2);border-radius:8px;border:1px solid var(--border);">
+        <div class="badge br" style="margin-bottom:.6rem;">Generalization & Evaluation</div>
+        <p style="font-size:.88rem;margin:0;">By withholding 24 of the 120 mappings entirely from training, evaluating on $5,000$ test samples guarantees that the model has acquired a generalized meta-skill. The over-complete coverage of the test space ($2,880$ configurations) ensures stable statistical metrics.</p>
+      </div>
+    </div>
+  </div>
+
   <div class="card rv">
     <h3>The Code</h3>
     <pre><span class="kw">def</span> <span class="fn">__getitem__</span>(self, idx):
