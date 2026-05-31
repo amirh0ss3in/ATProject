@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Can a Tiny Transformer Learn to Remember?</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,600;1,400&display=swap');
+:root{
+  --bg:#07070f;--surf:#111120;--surf2:#181830;--border:#252540;
+  --purple:#8b7cf8;--yellow:#f5c842;--green:#4ef0b0;--red:#f5607a;
+  --text:#ddddf5;--muted:#5a5a88;--white:#fff;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:'Lora',serif;font-size:17px;line-height:1.75;}
+nav{position:fixed;top:0;left:0;right:0;z-index:99;background:rgba(7,7,15,0.95);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;height:48px;}
+nav a{color:var(--muted);text-decoration:none;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:0 1.1rem;display:flex;align-items:center;border-right:1px solid var(--border);white-space:nowrap;transition:color .2s;}
+nav a:first-child{border-left:1px solid var(--border);}
+nav a:hover{color:var(--yellow);}
+section{padding:96px 0 72px;position:relative;}
+.wrap{max-width:1060px;margin:0 auto;padding:0 2rem;}
+.tag{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--purple);margin-bottom:.9rem;display:block;}
+h1{font-family:'Syne',sans-serif;font-size:clamp(2.6rem,5.5vw,4.6rem);font-weight:800;line-height:1.06;letter-spacing:-.02em;margin-bottom:1.2rem;}
+h2{font-family:'Syne',sans-serif;font-size:clamp(1.7rem,3vw,2.6rem);font-weight:700;line-height:1.1;letter-spacing:-.01em;margin-bottom:1.1rem;}
+h3{font-family:'Syne',sans-serif;font-size:1.15rem;font-weight:700;margin-bottom:.6rem;color:var(--yellow);}
+p{margin-bottom:.9rem;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:1.4rem;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.2rem;}
+@media(max-width:720px){.g2,.g3{grid-template-columns:1fr;}}
+.card{background:var(--surf);border:1px solid var(--border);border-radius:12px;padding:1.6rem;}
+.card+.card{margin-top:0;}
+.note{border-left:3px solid var(--purple);padding:.85rem 1.2rem;background:rgba(139,124,248,.06);border-radius:0 8px 8px 0;margin:1rem 0;font-style:italic;}
+.note.y{border-color:var(--yellow);background:rgba(245,200,66,.06);}
+.note.g{border-color:var(--green);background:rgba(78,240,176,.06);}
+.note.r{border-color:var(--red);background:rgba(245,96,122,.06);}
+pre,code{font-family:'Space Mono',monospace;}
+pre{background:#090916;border:1px solid var(--border);border-radius:8px;padding:1.1rem 1.3rem;font-size:11.5px;line-height:1.85;overflow-x:auto;color:#c0c0e0;}
+code{font-size:.87em;background:rgba(139,124,248,.12);padding:1px 5px;border-radius:4px;color:#c0c0e0;}
+.kw{color:#8b7cf8;}.fn{color:#f5c842;}.st{color:#4ef0b0;}.cm{color:#3a3a60;font-style:italic;}.nm{color:#f5607a;}
+.badge{display:inline-block;font-family:'Space Mono',monospace;font-size:10px;padding:3px 8px;border-radius:4px;font-weight:700;letter-spacing:.04em;}
+.bp{background:rgba(139,124,248,.2);color:#c0b4ff;border:1px solid rgba(139,124,248,.3);}
+.by{background:rgba(245,200,66,.2);color:#f5c842;border:1px solid rgba(245,200,66,.3);}
+.bg{background:rgba(78,240,176,.2);color:#4ef0b0;border:1px solid rgba(78,240,176,.3);}
+.br{background:rgba(245,96,122,.2);color:#f5607a;border:1px solid rgba(245,96,122,.3);}
+.hl{color:var(--yellow);}
+.hl2{color:var(--green);}
+.hl3{color:var(--red);}
+.hl4{color:var(--purple);}
+.div{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:2.5rem 0;}
+/* tokens */
+.tok{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:8px;font-family:'Space Mono',monospace;font-weight:700;font-size:.95rem;}
+.tx{background:rgba(139,124,248,.2);border:1.5px solid rgba(139,124,248,.5);color:#c0b4ff;}
+.ty{background:rgba(245,200,66,.2);border:1.5px solid rgba(245,200,66,.5);color:#f5c842;}
+.tq{background:rgba(245,96,122,.15);border:1.5px dashed rgba(245,96,122,.6);color:#f5607a;animation:blink 1.8s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.4;}}
+.tok-row{display:flex;gap:5px;flex-wrap:wrap;align-items:center;}
+/* prob bars */
+.pb-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;font-family:'Space Mono',monospace;font-size:11.5px;}
+.pb-lbl{width:36px;text-align:right;color:var(--muted);flex-shrink:0;}
+.pb-wrap{flex:1;height:22px;background:var(--surf2);border-radius:4px;overflow:hidden;}
+.pb-fill{height:100%;border-radius:4px;transition:width .7s cubic-bezier(.16,1,.3,1);}
+.pb-val{width:50px;text-align:right;flex-shrink:0;}
+.pb-tag{font-size:10px;flex-shrink:0;}
+/* step nav */
+.snav{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:1.2rem;}
+.sbtn{font-family:'Space Mono',monospace;font-size:11px;padding:5px 13px;border-radius:6px;border:1px solid var(--border);background:var(--surf);color:var(--muted);cursor:pointer;transition:all .2s;}
+.sbtn:hover{border-color:var(--purple);color:var(--text);}
+.sbtn.on{background:var(--purple);border-color:var(--purple);color:#fff;}
+.sbtn.probe{border-color:var(--red);}
+.sbtn.probe.on{background:var(--red);border-color:var(--red);}
+.sc{display:none;}.sc.on{display:block;}
+/* arch */
+.arch-item{background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:.9rem 1.3rem;display:flex;align-items:center;gap:1rem;}
+.arch-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;}
+.arch-arrow{text-align:center;color:var(--muted);font-size:1.1rem;padding:3px 0;}
+/* heatmap */
+table.hm{border-collapse:collapse;font-family:'Space Mono',monospace;font-size:11px;}
+table.hm th{padding:3px 5px;color:var(--muted);font-weight:400;text-align:center;font-size:10px;}
+table.hm td{width:44px;height:36px;text-align:center;font-size:10px;font-weight:700;border-radius:3px;}
+/* reveal */
+.rv{opacity:0;transform:translateY(20px);transition:opacity .55s,transform .55s;}
+.rv.vis{opacity:1;transform:none;}
+/* compare table */
+.ctable{width:100%;border-collapse:collapse;font-size:.88rem;}
+.ctable th{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:8px 12px;border-bottom:1px solid var(--border);text-align:left;}
+.ctable td{padding:10px 12px;border-bottom:1px solid rgba(37,37,64,.5);vertical-align:top;}
+.ctable tr:last-child td{border-bottom:none;}
+/* mapping arrows */
+.mrow{display:flex;align-items:center;gap:7px;margin-bottom:7px;font-family:'Space Mono',monospace;font-size:13px;}
+.mfrom{width:30px;height:30px;border-radius:6px;background:rgba(139,124,248,.2);border:1.5px solid rgba(139,124,248,.4);color:#c0b4ff;display:flex;align-items:center;justify-content:center;font-weight:700;}
+.mto{width:30px;height:30px;border-radius:6px;background:rgba(245,200,66,.2);border:1.5px solid rgba(245,200,66,.4);color:#f5c842;display:flex;align-items:center;justify-content:center;font-weight:700;}
+.marr{color:var(--muted);}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="#hero">Overview</a>
+  <a href="#task">The Task</a>
+  <a href="#dataset">Dataset</a>
+  <a href="#io">Input/Output</a>
+  <a href="#loss">Loss</a>
+  <a href="#model">Model</a>
+  <a href="#elim">Results: Elimination</a>
+  <a href="#probe">Probing Recall</a>
+  <a href="#fix">The Fix</a>
+  <a href="#attn">Attention Maps</a>
+  <a href="#mech">Recall Mechanism</a>
+  <a href="#summary">Summary</a>
+</nav>
+
+<!-- ═══════════════════════════════ HERO ═══════════════════════════════ -->
+<section id="hero" style="min-height:100vh;display:flex;align-items:center;background:radial-gradient(ellipse 70% 60% at 65% 40%,rgba(139,124,248,.1) 0%,transparent 65%);">
+<div class="wrap">
+  <div class="g2" style="align-items:center;gap:3.5rem;">
+    <div>
+      <span class="tag">Research Presentation</span>
+      <h1>Can a <span class="hl">Tiny</span> Transformer Learn to <span class="hl2">Remember?</span></h1>
+      <p style="color:var(--muted);font-size:1.05rem;font-style:italic;margin-bottom:2rem;">We train the smallest possible transformer on a permutation-lookup task, probe what it actually learned, then force it to learn something deeper.</p>
+      <div class="g2" style="gap:.8rem;">
+        <div style="background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:.9rem 1rem;">
+          <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px;">Architecture</div>
+          <div style="font-family:'Space Mono',monospace;font-size:.92rem;color:var(--text);">1-layer Transformer</div>
+        </div>
+        <div style="background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:.9rem 1rem;">
+          <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px;">Vocabulary</div>
+          <div style="font-family:'Space Mono',monospace;font-size:.92rem;color:var(--text);">V = 5 (numbers 1–5)</div>
+        </div>
+        <div style="background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:.9rem 1rem;">
+          <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px;">Final config</div>
+          <div style="font-family:'Space Mono',monospace;font-size:.92rem;color:var(--text);">d=32, 2 heads</div>
+        </div>
+        <div style="background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:.9rem 1rem;">
+          <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px;">Key finding</div>
+          <div style="font-family:'Space Mono',monospace;font-size:.92rem;color:var(--green);">Emergent head roles</div>
+        </div>
+      </div>
+    </div>
+    <div class="card rv">
+      <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-bottom:1rem;">A complete training sequence</div>
+      <div class="tok-row" style="margin-bottom:.6rem;">
+        <span class="tok tx">3</span><span class="tok ty">3</span>
+        <span style="width:6px;"></span>
+        <span class="tok tx">4</span><span class="tok ty">5</span>
+        <span style="width:6px;"></span>
+        <span class="tok tx">2</span><span class="tok ty">1</span>
+        <span style="width:6px;"></span>
+        <span class="tok tx">1</span><span class="tok ty">4</span>
+        <span style="width:6px;"></span>
+        <span class="tok tx">5</span><span class="tok tq">?</span>
+      </div>
+      <div style="display:flex;gap:1.2rem;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:1rem;">
+        <span><span style="background:rgba(139,124,248,.3);padding:2px 6px;border-radius:3px;color:#c0b4ff;">■</span> Input x</span>
+        <span><span style="background:rgba(245,200,66,.3);padding:2px 6px;border-radius:3px;color:#f5c842;">■</span> Output y</span>
+        <span><span style="background:rgba(245,96,122,.2);padding:2px 6px;border-radius:3px;color:#f5607a;">■</span> To predict</span>
+      </div>
+      <div class="note y" style="font-size:.88rem;margin:0;">
+        The mapping <code>3→3, 4→5, 2→1, 1→4, 5→2</code> is revealed pair by pair. The model must read it from context — it changes every single example.
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════ TASK ═══════════════════════════════ -->
+<section id="task">
+<div class="wrap">
+  <span class="tag">Section 01</span>
+  <h2>The Task: <span class="hl">Permutation Lookup</span></h2>
+
+  <div class="g2 rv" style="margin-bottom:1.4rem;">
+    <div class="card">
+      <h3>What is a Permutation?</h3>
+      <p>A permutation over V=5 is a rule that maps each of the numbers 1–5 to a unique other number in 1–5. Every input has exactly one output. No two inputs share an output.</p>
+      <div style="margin-top:1.1rem;">
+        <div class="mrow"><div class="mfrom">1</div><div class="marr">→</div><div class="mto">4</div></div>
+        <div class="mrow"><div class="mfrom">2</div><div class="marr">→</div><div class="mto">1</div></div>
+        <div class="mrow"><div class="mfrom">3</div><div class="marr">→</div><div class="mto">3</div></div>
+        <div class="mrow"><div class="mfrom">4</div><div class="marr">→</div><div class="mto">5</div></div>
+        <div class="mrow"><div class="mfrom">5</div><div class="marr">→</div><div class="mto">2</div></div>
+      </div>
+      <div style="margin-top:1rem;font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);">5! = 120 total possible permutations</div>
+    </div>
+    <div class="card">
+      <h3>Why Is This Hard?</h3>
+      <p>The mapping is different on every single training example. The model cannot memorize <em>"3 always maps to 3"</em> — because in the next example, 3 might map to 1.</p>
+      <p>Instead, the model must learn a meta-skill: <strong>read the (x,y) pairs from context, then answer new queries using what it just read.</strong></p>
+      <div class="note" style="margin:0;">This is called <strong>in-context learning</strong> — the "program" (the mapping) lives in the input, not the weights.</div>
+    </div>
+  </div>
+
+  <div class="card rv">
+    <h3>Three sub-skills the model needs</h3>
+    <div class="g3" style="margin-top:.5rem;">
+      <div style="padding:1rem;background:var(--surf2);border-radius:8px;border:1px solid var(--border);">
+        <div class="badge bp" style="margin-bottom:.7rem;">Skill 1</div>
+        <p style="font-size:.9rem;margin:0;"><strong style="color:var(--text);">Read pairs from context.</strong> When the model sees <code>3, 3</code> it should understand: "3 maps to 3 in this episode."</p>
+      </div>
+      <div style="padding:1rem;background:var(--surf2);border-radius:8px;border:1px solid var(--border);">
+        <div class="badge by" style="margin-bottom:.7rem;">Skill 2</div>
+        <p style="font-size:.9rem;margin:0;"><strong style="color:var(--text);">Track used values.</strong> Once y=3 has been output, it cannot appear again (it's a valid permutation — no repeats).</p>
+      </div>
+      <div style="padding:1rem;background:var(--surf2);border-radius:8px;border:1px solid var(--border);">
+        <div class="badge bg" style="margin-bottom:.7rem;">Skill 3</div>
+        <p style="font-size:.9rem;margin:0;"><strong style="color:var(--text);">Answer queries.</strong> When given a new x, use the pairs seen so far to find its y — or at least narrow the candidates.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════ DATASET ═══════════════════════════════ -->
+<section id="dataset">
+<div class="wrap">
+  <span class="tag">Section 02</span>
+  <h2>The <span class="hl2">Dataset</span> — How Data is Generated</h2>
+
+  <div class="g2 rv" style="margin-bottom:1.4rem;">
+    <div class="card">
+      <h3>The Train/Test Split</h3>
+      <p>All 120 permutations are split <strong>once, before any training</strong>. 80% (96 permutations) become training mappings. 20% (24) become test mappings. These sets never overlap.</p>
+      <p style="font-size:.9rem;color:var(--muted);">This is critical: the model is evaluated on mappings it has never seen. We're testing the general skill of reading context — not memorization of specific mappings.</p>
+      <div class="note r" style="font-size:.88rem;">If the model scores well on test mappings, it has genuinely learned a <em>skill</em>, not a lookup table.</div>
+    </div>
+    <div class="card">
+      <h3>How One Training Example is Built</h3>
+      <p style="font-size:.9rem;">Every time the dataloader asks for a sample, three things happen fresh:</p>
+      <div style="font-family:'Space Mono',monospace;font-size:12px;line-height:2.2;margin-top:.5rem;">
+        <div><span style="color:var(--purple);">1.</span> Pick a random mapping from the 96 train perms</div>
+        <div><span style="color:var(--purple);">2.</span> Shuffle the order of x-values: e.g. [3,4,2,1,5]</div>
+        <div><span style="color:var(--purple);">3.</span> Interleave: [3,<span style="color:var(--yellow);">3</span>, 4,<span style="color:var(--yellow);">5</span>, 2,<span style="color:var(--yellow);">1</span>, 1,<span style="color:var(--yellow);">4</span>, 5,<span style="color:var(--yellow);">2</span>]</div>
+      </div>
+      <div class="note y" style="font-size:.88rem;margin-top:1rem;">Shuffling the x-order is essential. Without it, the model could learn "the 1st pair is always 1→?" and never learn to read context properly.</div>
+    </div>
+  </div>
+
+  <div class="card rv">
+    <h3>The Code</h3>
+    <pre><span class="kw">def</span> <span class="fn">__getitem__</span>(self, idx):
+    mapping_perm = random.choice(self.mappings)          <span class="cm"># pick one of 96 train perms</span>
+    mapping = {x: y <span class="kw">for</span> x, y <span class="kw">in</span> zip(self.elements, mapping_perm)}
+
+    X_order = list(self.elements)
+    random.shuffle(X_order)                              <span class="cm"># shuffle [1,2,3,4,5] → e.g. [3,4,2,1,5]</span>
+
+    seq = []
+    <span class="kw">for</span> x <span class="kw">in</span> X_order:
+        seq.append(x)
+        seq.append(mapping[x])                           <span class="cm"># interleave: [3,3, 4,5, 2,1, 1,4, 5,2]</span>
+
+    inputs  = torch.tensor(seq[<span class="nm">:-1</span>], dtype=torch.long) <span class="cm"># tokens 0–8  (length 9)</span>
+    targets = torch.tensor(seq[<span class="nm">1:</span>],  dtype=torch.long) <span class="cm"># tokens 1–9  (length 9, shifted by 1)</span>
+    mask = torch.zeros(len(inputs), dtype=torch.float32)
+    mask[<span class="nm">::2</span>] = <span class="nm">1.0</span>                                    <span class="cm"># positions 0,2,4,6,8 → the y-prediction positions</span>
+    <span class="kw">return</span> inputs, targets, mask</pre>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════ INPUT/OUTPUT ═══════════════════════════════ -->
+<section id="io">
+<div class="wrap">
+  <span class="tag">Section 03</span>
+  <h2>Exactly What Goes <span class="hl4">Into</span> the Model — and What Comes <span class="hl2">Out</span></h2>
+
+  <div class="note rv" style="font-size:.95rem;margin-bottom:1.4rem;">This is the most important section to understand before anything else. Let's be completely explicit.</div>
+
+  <div class="card rv" style="margin-bottom:1.4rem;">
+    <h3>The Raw Sequence (length 10)</h3>
+    <p>Say the mapping for this example is <code>3→3, 4→5, 2→1, 1→4, 5→2</code> and the x-order is [3,4,2,1,5]. The full sequence is:</p>
+    <div class="tok-row" style="margin:1rem 0;gap:3px;">
+      <span class="tok tx" title="pos 0">3</span><span class="tok ty" title="pos 1">3</span>
+      <span class="tok tx" title="pos 2">4</span><span class="tok ty" title="pos 3">5</span>
+      <span class="tok tx" title="pos 4">2</span><span class="tok ty" title="pos 5">1</span>
+      <span class="tok tx" title="pos 6">1</span><span class="tok ty" title="pos 7">4</span>
+      <span class="tok tx" title="pos 8">5</span><span class="tok ty" title="pos 9">2</span>
+    </div>
+    <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);display:flex;gap:3px;flex-wrap:wrap;margin-bottom:1rem;">
+      <span style="width:40px;text-align:center;">pos 0</span><span style="width:40px;text-align:center;">pos 1</span>
+      <span style="width:40px;text-align:center;">pos 2</span><span style="width:40px;text-align:center;">pos 3</span>
+      <span style="width:40px;text-align:center;">pos 4</span><span style="width:40px;text-align:center;">pos 5</span>
+      <span style="width:40px;text-align:center;">pos 6</span><span style="width:40px;text-align:center;">pos 7</span>
+      <span style="width:40px;text-align:center;">pos 8</span><span style="width:40px;text-align:center;">pos 9</span>
+    </div>
+    <p style="font-size:.9rem;color:var(--muted);">Positions 0,2,4,6,8 are <span style="color:#c0b4ff;">x tokens</span> (inputs/queries). Positions 1,3,5,7,9 are <span style="color:#f5c842;">y tokens</span> (answers).</p>
+  </div>
+
+  <div class="g2 rv" style="margin-bottom:1.4rem;">
+    <div class="card">
+      <h3>inputs tensor (what the model sees)</h3>
+      <p style="font-size:.9rem;"><code>inputs = seq[:-1]</code> — drop the last token. Length = 9.</p>
+      <div class="tok-row" style="margin:.8rem 0;gap:3px;">
+        <span class="tok tx">3</span><span class="tok ty">3</span>
+        <span class="tok tx">4</span><span class="tok ty">5</span>
+        <span class="tok tx">2</span><span class="tok ty">1</span>
+        <span class="tok tx">1</span><span class="tok ty">4</span>
+        <span class="tok tx">5</span>
+      </div>
+      <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">indices: 0  1  2  3  4  5  6  7  8</div>
+      <p style="font-size:.88rem;color:var(--muted);margin-top:.7rem;">The model reads these 9 tokens all at once and produces 9 predictions simultaneously.</p>
+    </div>
+    <div class="card">
+      <h3>targets tensor (what we want predicted)</h3>
+      <p style="font-size:.9rem;"><code>targets = seq[1:]</code> — drop the first token. Length = 9.</p>
+      <div class="tok-row" style="margin:.8rem 0;gap:3px;">
+        <span class="tok ty">3</span>
+        <span class="tok tx">4</span><span class="tok ty">5</span>
+        <span class="tok tx">2</span><span class="tok ty">1</span>
+        <span class="tok tx">1</span><span class="tok ty">4</span>
+        <span class="tok tx">5</span><span class="tok ty">2</span>
+      </div>
+      <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">indices: 0  1  2  3  4  5  6  7  8</div>
+      <p style="font-size:.88rem;color:var(--muted);margin-top:.7rem;">Each target is the token that comes <em>after</em> the corresponding input. This is the standard language-model "next token prediction" setup.</p>
+    </div>
+  </div>
+
+  <div class="card rv">
+    <h3>Aligning inputs to targets — position by position</h3>
+    <p style="font-size:.9rem;margin-bottom:1rem;">Let's line them up and see what the model is predicting at each position:</p>
+    <div style="overflow-x:auto;">
+      <table class="ctable">
+        <tr>
+          <th>Position</th><th>Input token (seen)</th><th>Target token (predict)</th><th>Meaningful?</th><th>What the model must do</th>
+        </tr>
+        <tr><td style="font-family:'Space Mono',monospace;color:var(--muted);">0</td><td><span class="tok tx" style="width:28px;height:28px;font-size:.8rem;">3</span></td><td><span class="tok ty" style="width:28px;height:28px;font-size:.8rem;">3</span></td><td><span class="badge bg">YES ✓</span></td><td style="font-size:.88rem;">Given x₁=3, predict y₁. (No prior context — hardest step.)</td></tr>
+        <tr><td style="font-family:'Space Mono',monospace;color:var(--muted);">1</td><td><span class="tok ty" style="width:28px;height:28px;font-size:.8rem;">3</span></td><td><span class="tok tx" style="width:28px;height:28px;font-size:.8rem;">4</span></td><td><span class="badge br">NO</span></td><td style="font-size:.88rem;color:var(--muted);">Predict next x (which is random) — not meaningful, loss masked out.</td></tr>
+        <tr><td style="font-family:'Space Mono',monospace;color:var(--muted);">2</td><td><span class="tok tx" style="width:28px;height:28px;font-size:.8rem;">4</span></td><td><span class="tok ty" style="width:28px;height:28px;font-size:.8rem;">5</span></td><td><span class="badge bg">YES ✓</span></td><td style="font-size:.88rem;">Given x₂=4, predict y₂. Can see (3→3) already.</td></tr>
+        <tr><td style="font-family:'Space Mono',monospace;color:var(--muted);">4</td><td><span class="tok tx" style="width:28px;height:28px;font-size:.8rem;">2</span></td><td><span class="tok ty" style="width:28px;height:28px;font-size:.8rem;">1</span></td><td><span class="badge bg">YES ✓</span></td><td style="font-size:.88rem;">Given x₃=2, predict y₃. Can see (3→3, 4→5).</td></tr>
+        <tr><td style="font-family:'Space Mono',monospace;color:var(--muted);">6</td><td><span class="tok tx" style="width:28px;height:28px;font-size:.8rem;">1</span></td><td><span class="tok ty" style="width:28px;height:28px;font-size:.8rem;">4</span></td><td><span class="badge bg">YES ✓</span></td><td style="font-size:.88rem;">Given x₄=1, predict y₄. Can see (3→3, 4→5, 2→1).</td></tr>
+        <tr><td style="font-family:'Space Mono',monospace;color:var(--muted);">8</td><td><span class="tok tx" style="width:28px;height:28px;font-size:.8rem;">5</span></td><td><span class="tok ty" style="width:28px;height:28px;font-size:.8rem;">2</span></td><td><span class="badge bg">YES ✓</span></td><td style="font-size:.88rem;">Given x₅=5, predict y₅. All 4 prior pairs visible.</td></tr>
+      </table>
+    </div>
+    <div class="note y" style="font-size:.88rem;margin-top:1rem;">The model outputs 9 predictions simultaneously in one forward pass. But loss is only computed at positions 0, 2, 4, 6, 8 — the 5 y-prediction positions. The odd positions (predicting the next x) are masked out because those predictions are meaningless.</div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════ LOSS ═══════════════════════════════ -->
+<section id="loss">
+<div class="wrap">
+  <span class="tag">Section 04</span>
+  <h2>How <span class="hl3">Loss</span> is Computed — Step by Step</h2>
+
+  <div class="note rv" style="font-size:.95rem;margin-bottom:1.4rem;">Loss is the number that training minimizes. Understanding exactly what it measures here is essential.</div>
+
+  <div class="card rv" style="margin-bottom:1.4rem;">
+    <h3>What is Cross-Entropy Loss?</h3>
+    <p>At each y-prediction position, the model outputs a probability distribution over the 5 possible values. Cross-entropy measures how wrong that distribution is:</p>
+    <div style="background:var(--surf2);border-radius:8px;padding:1.2rem;margin:.8rem 0;font-family:'Space Mono',monospace;font-size:12px;line-height:2;">
+      <div style="color:var(--muted);">CE_loss = <span style="color:var(--text);">−log( P(correct answer) )</span></div>
+      <div style="color:var(--muted);font-size:11px;margin-top:.4rem;">If model says P(y=3) = 0.90 → loss = −log(0.90) = <span style="color:var(--green);">0.105 (low, good)</span></div>
+      <div style="color:var(--muted);font-size:11px;">If model says P(y=3) = 0.20 → loss = −log(0.20) = <span style="color:var(--red);">1.609 (high, bad)</span></div>
+    </div>
+    <div class="note y" style="font-size:.88rem;margin:0;">Random guessing among 5 values gives P = 0.20 each → loss = −log(0.20) = <strong>ln(5) ≈ 1.609</strong>. This is the theoretical ceiling. A model that does better than this has learned something.</div>
+  </div>
+
+  <div class="card rv" style="margin-bottom:1.4rem;">
+    <h3>The Masking — Why We Don't Train on Every Position</h3>
+    <pre><span class="cm"># mask[::2] = 1.0 means positions 0, 2, 4, 6, 8 get mask=1 (active)</span>
+<span class="cm"># positions 1, 3, 5, 7 get mask=0 (ignored)</span>
+
+loss_elementwise = criterion(logits.view(<span class="nm">-1</span>, logits.size(<span class="nm">-1</span>)), targets.view(<span class="nm">-1</span>))
+<span class="cm"># loss_elementwise shape: [batch*9] — one loss number per position per sample</span>
+
+masked_loss = (loss_elementwise * masks.view(<span class="nm">-1</span>)).sum()
+<span class="cm"># multiply by mask → zero out x-positions, keep only y-positions</span>
+
+loss = masked_loss / masks.sum()
+<span class="cm"># divide by number of active tokens (5 per sample) → average loss per y-prediction</span></pre>
+    <div class="note" style="font-size:.88rem;margin-top:.8rem;">Why mask? Because predicting the next x is trivial and meaningless — x values are chosen randomly by the dataset and don't follow any learnable pattern. Including them in the loss would add noise and dilute the signal.</div>
+  </div>
+
+  <div class="card rv">
+    <h3>Loss at Each Position — What a Perfect Model Would See</h3>
+    <div class="g2" style="align-items:start;">
+      <div>
+        <p style="font-size:.9rem;">The 5 y-positions have different difficulty levels:</p>
+        <table class="ctable" style="margin-top:.5rem;">
+          <tr><th>Step</th><th>Prior context</th><th>Best possible loss</th></tr>
+          <tr><td style="font-family:'Space Mono',monospace;">y₁</td><td style="font-size:.85rem;color:var(--muted);">None — 5 candidates</td><td style="font-family:'Space Mono',monospace;color:var(--red);">ln(5)≈1.609</td></tr>
+          <tr><td style="font-family:'Space Mono',monospace;">y₂</td><td style="font-size:.85rem;color:var(--muted);">1 pair seen — 4 candidates</td><td style="font-family:'Space Mono',monospace;color:var(--yellow);">ln(4)≈1.386</td></tr>
+          <tr><td style="font-family:'Space Mono',monospace;">y₃</td><td style="font-size:.85rem;color:var(--muted);">2 pairs — 3 candidates</td><td style="font-family:'Space Mono',monospace;color:var(--yellow);">ln(3)≈1.099</td></tr>
+          <tr><td style="font-family:'Space Mono',monospace;">y₄</td><td style="font-size:.85rem;color:var(--muted);">3 pairs — 2 candidates</td><td style="font-family:'Space Mono',monospace;color:var(--green);">ln(2)≈0.693</td></tr>
+          <tr><td style="font-family:'Space Mono',monospace;">y₅</td><td style="font-size:.85rem;color:var(--muted);">4 pairs — 1 candidate</td><td style="font-family:'Space Mono',monospace;color:var(--green);">0.000</td></tr>
+        </table>
+      </div>
+      <div>
+        <div class="note g" style="font-size:.88rem;margin-bottom:.8rem;">A model that only does elimination (tracks used values, uniform over the rest) would achieve roughly: (1.609+1.386+1.099+0.693+0.000)/5 ≈ <strong>0.957</strong> average loss per y-token.</div>
+        <div class="note y" style="font-size:.88rem;">Our model plateaus at ~0.959 — almost exactly this number. This tells us the baseline model is doing <strong>elimination only</strong> and nothing more.</div>
+        <div class="note r" style="font-size:.88rem;margin-top:.8rem;">The loss alone cannot tell you the mechanism. To know whether the model is using elimination or recall, you have to probe it — which we do in Section 07.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════ MODEL ═══════════════════════════════ -->
+<section id="model">
+<div class="wrap">
+  <span class="tag">Section 05</span>
+  <h2>The <span class="hl4">Model</span> Architecture</h2>
+
+  <div class="g2 rv" style="margin-bottom:1.4rem;">
+    <div>
+      <div class="arch-item" style="margin-bottom:4px;">
+        <div class="arch-icon" style="background:rgba(245,200,66,.2);">🔢</div>
+        <div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem;">Token Embedding</div>
+          <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">Embedding(6, d_model) — integers 1–5 become d-dimensional vectors</div>
+        </div>
+      </div>
+      <div class="arch-arrow">+</div>
+      <div class="arch-item" style="margin-bottom:4px;">
+        <div class="arch-icon" style="background:rgba(139,124,248,.2);">📍</div>
+        <div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem;">Positional Embedding</div>
+          <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">Embedding(9, d_model) — positions 0–8 become d-dimensional vectors</div>
+        </div>
+      </div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-item" style="margin-bottom:4px;border-color:rgba(139,124,248,.4);background:rgba(139,124,248,.06);">
+        <div class="arch-icon" style="background:rgba(139,124,248,.3);">🔍</div>
+        <div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem;">Multi-Head Self-Attention</div>
+          <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">nhead heads, causal mask — each token gathers info from past tokens</div>
+        </div>
+      </div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-item" style="margin-bottom:4px;">
+        <div class="arch-icon" style="background:rgba(78,240,176,.2);">⚡</div>
+        <div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem;">Feed-Forward Network (FFN)</div>
+          <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">d_model → 2×d_model → d_model with ReLU activation</div>
+        </div>
+      </div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-item">
+        <div class="arch-icon" style="background:rgba(245,96,122,.2);">📊</div>
+        <div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem;">Linear Output Layer</div>
+          <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">d_model → 6 logits → softmax → probability over values 1–5</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:1.2rem;">
+        <h3>Why sum token + position embeddings?</h3>
+        <p style="font-size:.9rem;">The token embedding encodes <em>what</em> a token is (e.g. "I am the number 3"). The positional embedding encodes <em>where</em> it is in the sequence (e.g. "I am at position 4"). Adding them together gives each position's representation both pieces of information.</p>
+        <div class="note" style="font-size:.88rem;margin:0;">Without positional embeddings, the model would treat <code>[3,3,4,5]</code> the same as <code>[4,5,3,3]</code> — it would be blind to order.</div>
+      </div>
+      <div class="card">
+        <h3>Configuration Evolution</h3>
+        <table class="ctable">
+          <tr><th>Version</th><th>d</th><th>heads</th><th>Learns recall?</th></tr>
+          <tr><td><span class="badge bp">v1</span></td><td>16</td><td>1</td><td style="color:var(--red);">✗ No</td></tr>
+          <tr><td><span class="badge by">v2</span></td><td>32</td><td>1</td><td style="color:var(--yellow);">~ Partial</td></tr>
+          <tr><td><span class="badge bg">v3 ✓</span></td><td>32</td><td>2</td><td style="color:var(--green);">✓ 99.9%</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card rv">
+    <h3>What is d_model and why does it matter?</h3>
+    <p>Every token is represented as a vector of <code>d_model</code> numbers. Think of it as the "working memory" size for each position. Everything the model knows about a token — its identity, its position, the context it has gathered — must fit in this vector.</p>
+    <div class="g3" style="margin-top:1rem;">
+      <div style="padding:.9rem;background:var(--surf2);border-radius:8px;border:1px solid var(--border);">
+        <div class="badge bp" style="margin-bottom:.6rem;">Token identity</div>
+        <p style="font-size:.88rem;margin:0;">5 tokens need to be well-separated in space. ~5–6 dimensions sufficient.</p>
+      </div>
+      <div style="padding:.9rem;background:var(--surf2);border-radius:8px;border:1px solid var(--border);">
+        <div class="badge by" style="margin-bottom:.6rem;">Position signal</div>
+        <p style="font-size:.88rem;margin:0;">Is this an x or a y? Even or odd position? ~2–3 dimensions.</p>
+      </div>
+      <div style="padding:.9rem;background:var(--surf2);border-radius:8px;border:1px solid var(--border);">
+        <div class="badge bg" style="margin-bottom:.6rem;">Context state</div>
+        <p style="font-size:.88rem;margin:0;">Which y-values are used? 2⁵=32 subsets → needs ~8+ dimensions.</p>
+      </div>
+    </div>
+    <div class="note y" style="font-size:.88rem;margin-top:1rem;">d=16 barely clears 6+3+8=17. d=32 gives comfortable headroom, especially for the recall task where (x→y) bindings must also be stored.</div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════ ELIMINATION RESULTS ═══════════════════════════════ -->
+<section id="elim">
+<div class="wrap">
+  <span class="tag">Section 06</span>
+  <h2>Results: <span class="hl">Elimination</span> in Action</h2>
+
+  <p class="rv" style="margin-bottom:1rem;">Test sequence from an <strong>unseen permutation</strong>: <code style="font-size:.9rem;">[2,3, 1,5, 4,4, 3,2, 5,1]</code> — mapping: 2→3, 1→5, 4→4, 3→2, 5→1</p>
+
+  <div class="snav rv" id="elimNav">
+    <button class="sbtn on" data-step="0">Step 1 — x=2</button>
+    <button class="sbtn" data-step="1">Step 2 — x=1</button>
+    <button class="sbtn" data-step="2">Step 3 — x=4</button>
+    <button class="sbtn" data-step="3">Step 4 — x=3</button>
+    <button class="sbtn" data-step="4">Step 5 — x=5</button>
+  </div>
+
+  <div class="card rv" id="elimCard">
+    <div class="sc on" data-step="0">
+      <div class="g2" style="align-items:start;">
+        <div>
+          <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:1rem;">Input seen so far → [2] | Used y: [] | Target: y=3</div>
+          <div class="pb-row"><div class="pb-lbl">y=1</div><div class="pb-wrap"><div class="pb-fill" style="width:20.8%;background:#4a4a7a;"></div></div><div class="pb-val">0.208</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=2</div><div class="pb-wrap"><div class="pb-fill" style="width:18.8%;background:#4a4a7a;"></div></div><div class="pb-val">0.188</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=3</div><div class="pb-wrap"><div class="pb-fill" style="width:20.1%;background:#4ef0b0;opacity:.8;"></div></div><div class="pb-val" style="color:var(--green);">0.201</div><div class="pb-tag" style="color:var(--green);">✓ target</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=4</div><div class="pb-wrap"><div class="pb-fill" style="width:16.9%;background:#4a4a7a;"></div></div><div class="pb-val">0.169</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=5</div><div class="pb-wrap"><div class="pb-fill" style="width:23.3%;background:#4a4a7a;"></div></div><div class="pb-val">0.233</div></div>
+        </div>
+        <div>
+          <div class="note" style="font-size:.9rem;">The model has seen only one token: x=2. It has <strong>zero context</strong> — no (x,y) pairs have been revealed yet. All five y-values are equally possible. Output is close to uniform (≈20% each). This is exactly the right behavior: there is no information to act on.</div>
+          <div class="note r" style="font-size:.88rem;margin-top:.8rem;">The true target y=3 has only 20.1% probability. That is <em>not a failure</em>. It is the only honest answer given no context.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sc" data-step="1">
+      <div class="g2" style="align-items:start;">
+        <div>
+          <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:1rem;">Input seen so far → [2,3, 1] | Used y: [3] | Target: y=5</div>
+          <div class="pb-row"><div class="pb-lbl">y=1</div><div class="pb-wrap"><div class="pb-fill" style="width:26%;background:#4a4a7a;"></div></div><div class="pb-val">0.260</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=2</div><div class="pb-wrap"><div class="pb-fill" style="width:23.6%;background:#4a4a7a;"></div></div><div class="pb-val">0.236</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=3</div><div class="pb-wrap"><div class="pb-fill" style="width:0.02%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=4</div><div class="pb-wrap"><div class="pb-fill" style="width:23.6%;background:#4a4a7a;"></div></div><div class="pb-val">0.236</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=5</div><div class="pb-wrap"><div class="pb-fill" style="width:26.9%;background:#4ef0b0;opacity:.8;"></div></div><div class="pb-val" style="color:var(--green);">0.269</div><div class="pb-tag" style="color:var(--green);">✓ target</div></div>
+        </div>
+        <div>
+          <div class="note y" style="font-size:.9rem;"><strong>Elimination kicks in.</strong> y=3 was used as y₁. The model has crushed its probability to ~0.000. The remaining 4 candidates share probability roughly equally (~25% each). The model has learned to track used values and rule them out.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sc" data-step="2">
+      <div class="g2" style="align-items:start;">
+        <div>
+          <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:1rem;">Input seen → [2,3, 1,5, 4] | Used y: [3,5] | Target: y=4</div>
+          <div class="pb-row"><div class="pb-lbl">y=1</div><div class="pb-wrap"><div class="pb-fill" style="width:34.7%;background:#4a4a7a;"></div></div><div class="pb-val">0.347</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=2</div><div class="pb-wrap"><div class="pb-fill" style="width:36.8%;background:#4a4a7a;"></div></div><div class="pb-val">0.368</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=3</div><div class="pb-wrap"><div class="pb-fill" style="width:0.01%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=4</div><div class="pb-wrap"><div class="pb-fill" style="width:28.5%;background:#4ef0b0;opacity:.8;"></div></div><div class="pb-val" style="color:var(--green);">0.285</div><div class="pb-tag" style="color:var(--green);">✓ target</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=5</div><div class="pb-wrap"><div class="pb-fill" style="width:0.01%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+        </div>
+        <div>
+          <div class="note y" style="font-size:.9rem;">Two values eliminated. Three remain (y=1, y=2, y=4). The model spreads probability ~⅓ each over valid candidates. It doesn't have enough context to know which of these three x=4 maps to — it has not seen x=4 before. Rational uncertainty.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sc" data-step="3">
+      <div class="g2" style="align-items:start;">
+        <div>
+          <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:1rem;">Input seen → [2,3, 1,5, 4,4, 3] | Used y: [3,5,4] | Target: y=2</div>
+          <div class="pb-row"><div class="pb-lbl">y=1</div><div class="pb-wrap"><div class="pb-fill" style="width:54.6%;background:#f5c842;opacity:.7;"></div></div><div class="pb-val">0.546</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=2</div><div class="pb-wrap"><div class="pb-fill" style="width:45.4%;background:#4ef0b0;opacity:.8;"></div></div><div class="pb-val" style="color:var(--green);">0.454</div><div class="pb-tag" style="color:var(--green);">✓ target</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=3</div><div class="pb-wrap"><div class="pb-fill" style="width:0.01%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=4</div><div class="pb-wrap"><div class="pb-fill" style="width:0.01%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=5</div><div class="pb-wrap"><div class="pb-fill" style="width:0.01%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+        </div>
+        <div>
+          <div class="note y" style="font-size:.9rem;">Three eliminated. Only y=1 and y=2 remain. The model is ~50/50. This is completely rational — x=3 hasn't been seen before, so without a prior (x,y) pair for x=3, there's no way to distinguish y=1 from y=2.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sc" data-step="4">
+      <div class="g2" style="align-items:start;">
+        <div>
+          <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:1rem;">Input seen → [..., 3,2, 5] | Used y: [3,5,4,2] | Target: y=1</div>
+          <div class="pb-row"><div class="pb-lbl">y=1</div><div class="pb-wrap"><div class="pb-fill" style="width:99.99%;background:#4ef0b0;"></div></div><div class="pb-val" style="color:var(--green);">0.9999</div><div class="pb-tag" style="color:var(--green);">✓ target</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=2</div><div class="pb-wrap"><div class="pb-fill" style="width:0.01%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=3</div><div class="pb-wrap"><div class="pb-fill" style="width:0.01%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=4</div><div class="pb-wrap"><div class="pb-fill" style="width:0.01%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+          <div class="pb-row"><div class="pb-lbl">y=5</div><div class="pb-wrap"><div class="pb-fill" style="width:0.01%;background:var(--red);"></div></div><div class="pb-val" style="color:var(--red);">0.000</div><div class="pb-tag" style="color:var(--red);">✕ used</div></div>
+        </div>
+        <div>
+          <div class="note g" style="font-size:.9rem;"><strong>99.99% confidence!</strong> Four values eliminated — only y=1 remains. The model is certain by deduction alone. Critically, it doesn't need to know x=5 maps to y=1; it just knows nothing else is available.</div>
+          <div class="note r" style="font-size:.88rem;margin-top:.8rem;">This is the danger: step 5 <em>always</em> looks perfect for a pure elimination model, regardless of whether it has learned the actual mapping. We must probe it to find out.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════ PROBE ═══════════════════════════════ -->
+<section id="probe">
+<div class="wrap">
+  <span class="tag">Section 07</span>
+  <h2>The <span class="hl3">Memorization Probe</span> — Catching the Shortcut</h2>
+
+  <div class="card rv" style="margin-bottom:1.4rem;">
+    <h3>The Design of the Probe</h3>
+    <p>We construct a modified sequence where the 5th x-token is a repeat of x₁. This is done programmatically from a real test sequence — no hardcoding.</p>
+    <pre><span class="cm"># Get a real test sequence from the dataset</span>
+inputs, targets, _ = test_dataset[<span class="nm">0</span>]
+full_seq = [inputs[<span class="nm">0</span>].item()] + targets.tolist()  <span class="cm"># length 10</span>
+
+<span class="cm"># Extract the mapping from the sequence</span>
+mapping = {full_seq[i]: full_seq[i+<span class="nm">1</span>] <span class="kw">for</span> i <span class="kw">in</span> range(<span class="nm">0</span>, <span class="nm">10</span>, <span class="nm">2</span>)}
+x_order = [full_seq[i] <span class="kw">for</span> i <span class="kw">in</span> range(<span class="nm">0</span>, <span class="nm">10</span>, <span class="nm">2</span>)]
+
+<span class="cm"># Build probe: 4 normal pairs + repeat x1 at step 5</span>
+probe_seq = []
+<span class="kw">for</span> x <span class="kw">in</span> x_order[:<span class="nm">4</span>]:
+    probe_seq.append(x)
+    probe_seq.append(mapping[x])
+probe_seq.append(x_order[<span class="nm">0</span>])            <span class="cm"># repeat x1</span>
+probe_seq.append(mapping[x_order[<span class="nm">0</span>]])    <span class="cm"># correct answer if model recalls</span></pre>
+    <div class="note" style="font-size:.88rem;margin-top:.8rem;">By the time x₁ repeats at step 5, all 4 other y-values have been output. The only "unused" value is the one <em>other</em> than y₁. So elimination says one thing, and recall says another — they are in direct contradiction.</div>
+  </div>
+
+  <div class="g2 rv" style="margin-bottom:1.4rem;">
+    <div class="card">
+      <h3>d=16, 1 head — <span class="hl3">FAILS</span></h3>
+      <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:.8rem;">Probe sequence: [4,4, 1,3, 5,1, 2,5, 4,?] — x=4 repeats, correct recall = y=4</div>
+      <div class="pb-row"><div class="pb-lbl">y=2</div><div class="pb-wrap"><div class="pb-fill" style="width:99.94%;background:var(--red);opacity:.8;"></div></div><div class="pb-val" style="color:var(--red);">0.9994</div><div class="pb-tag" style="color:var(--red);">← only unused</div></div>
+      <div class="pb-row"><div class="pb-lbl">y=4</div><div class="pb-wrap"><div class="pb-fill" style="width:0.01%;background:#4a4a7a;"></div></div><div class="pb-val">0.0001</div><div class="pb-tag" style="color:var(--green);">← correct recall</div></div>
+      <div class="note r" style="font-size:.88rem;margin-top:1rem;">The model confidently picks the wrong answer. It picked y=2 because it's the only unused value — pure elimination with no regard for what x=4 mapped to earlier.</div>
+    </div>
+    <div class="card">
+      <h3>d=32, 2 heads — <span class="hl2">SUCCEEDS</span></h3>
+      <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:.8rem;">Probe sequence: [2,3, 1,5, 4,4, 3,2, 2,?] — x=2 repeats, correct recall = y=3</div>
+      <div class="pb-row"><div class="pb-lbl">y=3</div><div class="pb-wrap"><div class="pb-fill" style="width:99.91%;background:var(--green);"></div></div><div class="pb-val" style="color:var(--green);">0.9991</div><div class="pb-tag" style="color:var(--green);">← correct recall!</div></div>
+      <div class="pb-row"><div class="pb-lbl">y=2</div><div class="pb-wrap"><div class="pb-fill" style="width:0.01%;background:#4a4a7a;"></div></div><div class="pb-val">0.000</div><div class="pb-tag" style="color:var(--red);">← only unused</div></div>
+      <div class="note g" style="font-size:.88rem;margin-top:1rem;">The model picks y=3 with 99.91% confidence — despite y=3 being in the "already used" set. It has correctly overridden elimination with recall.</div>
+    </div>
+  </div>
+
+  <div class="card rv">
+    <h3>Why this probe is definitive</h3>
+    <div class="g3" style="margin-top:.5rem;">
+      <div style="padding:.9rem;background:var(--surf2);border-radius:8px;border:1px solid var(--border);">
+        <div class="badge br" style="margin-bottom:.6rem;">The trap</div>
+        <p style="font-size:.88rem;margin:0;">All 4 "other" y-values are used. The only unused value is y=2. A pure elimination model will always pick y=2 — even if that's wrong.</p>
+      </div>
+      <div style="padding:.9rem;background:var(--surf2);border-radius:8px;border:1px solid var(--border);">
+        <div class="badge by" style="margin-bottom:.6rem;">The signal</div>
+        <p style="font-size:.88rem;margin:0;">The correct recall answer (y=3) is in the "already used" set. Choosing it requires the model to <em>ignore</em> the elimination signal and use associative memory instead.</p>
+      </div>
+      <div style="padding:.9rem;background:var(--surf2);border-radius:8px;border:1px solid var(--border);">
+        <div class="badge bg" style="margin-bottom:.6rem;">The result</div>
+        <p style="font-size:.88rem;margin:0;">The final model outputs 99.91% for the recalled value and ~0% for the only unused value — a complete inversion of what elimination would predict.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════ THE FIX ═══════════════════════════════ -->
+<section id="fix">
+<div class="wrap">
+  <span class="tag">Section 08</span>
+  <h2>Teaching Recall: <span class="hl2">RepeatedPermutationSequenceDataset</span></h2>
+
+  <div class="card rv" style="margin-bottom:1.4rem;">
+    <h3>Why the baseline model never learned recall</h3>
+    <p>The original dataset contained only valid permutations — every x appeared exactly once per sequence. The model was <strong>never penalized</strong> for ignoring (x→y) associations, because elimination was always sufficient to achieve low loss. There was zero training signal for recall.</p>
+    <div class="note r" style="font-size:.88rem;margin:0;">This is a fundamental principle: a model only learns what its training distribution <em>rewards</em>. The skill was absent from the reward signal, so the model never developed it.</div>
+  </div>
+
+  <div class="card rv" style="margin-bottom:1.4rem;">
+    <h3>The fix: inject 30% repeated-x sequences into training</h3>
+    <pre><span class="kw">class</span> <span class="fn">RepeatedPermutationSequenceDataset</span>(Dataset):
+    <span class="kw">def</span> <span class="fn">__getitem__</span>(self, idx):
+        mapping_perm = random.choice(self.mappings)
+        mapping = {x: y <span class="kw">for</span> x, y <span class="kw">in</span> zip(self.elements, mapping_perm)}
+        X_order = list(self.elements)
+        random.shuffle(X_order)
+
+        <span class="kw">if</span> random.random() < self.repeat_ratio:     <span class="cm"># 30% of the time:</span>
+            X_order[<span class="nm">4</span>] = random.choice(X_order[:<span class="nm">4</span>]) <span class="cm"># replace x5 with a repeat of x1–x4</span>
+
+        seq = []
+        <span class="kw">for</span> x <span class="kw">in</span> X_order:
+            seq.append(x)
+            seq.append(mapping[x])                       <span class="cm"># same mapping applies to the repeat</span>
+        <span class="cm"># rest identical to original dataset</span></pre>
+    <div class="g2" style="margin-top:1.2rem;">
+      <div>
+        <div class="badge bp" style="margin-bottom:.7rem;">Normal sequence (70%)</div>
+        <div class="tok-row" style="gap:3px;margin-bottom:.5rem;">
+          <span class="tok tx">3</span><span class="tok ty">3</span>
+          <span class="tok tx">4</span><span class="tok ty">5</span>
+          <span class="tok tx">2</span><span class="tok ty">1</span>
+          <span class="tok tx">1</span><span class="tok ty">4</span>
+          <span class="tok tx">5</span><span class="tok ty">2</span>
+        </div>
+        <div style="font-size:.82rem;color:var(--muted);font-family:'Space Mono',monospace;">All 5 x values distinct. Elimination works fine.</div>
+      </div>
+      <div>
+        <div class="badge br" style="margin-bottom:.7rem;">Repeated sequence (30%)</div>
+        <div class="tok-row" style="gap:3px;margin-bottom:.5rem;">
+          <span class="tok tx">3</span><span class="tok ty">3</span>
+          <span class="tok tx">4</span><span class="tok ty">5</span>
+          <span class="tok tx">2</span><span class="tok ty">1</span>
+          <span class="tok tx">1</span><span class="tok ty">4</span>
+          <span class="tok tx" style="outline:2px solid var(--red);">3</span><span class="tok ty" style="outline:2px solid var(--red);">3</span>
+        </div>
+        <div style="font-size:.82rem;color:var(--muted);font-family:'Space Mono',monospace;">x5=3 repeats x1. Elimination gives wrong answer. Recall required.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card rv">
+    <h3>Is the train/test split still clean?</h3>
+    <p>Yes — completely. The split is on <strong>permutation mappings</strong>, not on sequence types. The 24 test mappings are never used during training, regardless of whether normal or repeated sequences are generated. The <em>structure</em> of repeated sequences can appear in training (using training mappings), but the actual test mappings remain unseen.</p>
+    <div class="note g" style="font-size:.88rem;margin:0;">No data leakage. The test measures generalization of the recall skill to new mappings — not memorization of specific (x,y) pairs seen during training.</div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════ ATTENTION ═══════════════════════════════ -->
+<section id="attn">
+<div class="wrap">
+  <span class="tag">Section 09</span>
+  <h2><span class="hl4">Attention Maps</span> — What Are We Actually Looking At?</h2>
+
+  <div class="card rv" style="margin-bottom:1.4rem;">
+    <h3>What is Self-Attention? (From scratch)</h3>
+    <p>Imagine each token in the sequence needs to gather information from other tokens. Self-attention is the mechanism that decides <strong>how much each token pays attention to each other token</strong>.</p>
+    <p>Each token produces three vectors from its embedding:</p>
+    <div class="g3" style="margin-bottom:1rem;">
+      <div style="padding:.9rem;background:var(--surf2);border-radius:8px;border:1px solid var(--border);">
+        <div style="font-family:'Space Mono',monospace;color:var(--purple);font-weight:700;margin-bottom:.4rem;">Query (Q)</div>
+        <p style="font-size:.88rem;margin:0;">"What am I looking for?" — this token's question to the sequence.</p>
+      </div>
+      <div style="padding:.9rem;background:var(--surf2);border-radius:8px;border:1px solid var(--border);">
+        <div style="font-family:'Space Mono',monospace;color:var(--yellow);font-weight:700;margin-bottom:.4rem;">Key (K)</div>
+        <p style="font-size:.88rem;margin:0;">"What do I have to offer?" — this token's label for what it contains.</p>
+      </div>
+      <div style="padding:.9rem;background:var(--surf2);border-radius:8px;border:1px solid var(--border);">
+        <div style="font-family:'Space Mono',monospace;color:var(--green);font-weight:700;margin-bottom:.4rem;">Value (V)</div>
+        <p style="font-size:.88rem;margin:0;">"What information do I carry?" — the actual content this token contributes.</p>
+      </div>
+    </div>
+    <p style="font-size:.9rem;">The attention weight between token i and token j is computed as: <strong>dot product of Q_i · K_j</strong>, scaled and softmaxed. The result is a number between 0 and 1 that says how much token i "looks at" token j when forming its output.</p>
+    <div class="note y" style="font-size:.88rem;">The heatmap shows these attention weights. <strong>Row = the token asking</strong> (Query). <strong>Column = the token being looked at</strong> (Key). Each row sums to 1.0. A bright cell means "this token pays a lot of attention to that past token."</div>
+  </div>
+
+  <div class="card rv" style="margin-bottom:1.4rem;">
+    <h3>Reading the Causal Mask</h3>
+    <p style="font-size:.9rem;">The upper-right triangle is always zero — this is the <strong>causal mask</strong>. Token at position 3 cannot look at position 5, because position 5 is in the future. Only the lower-left triangle contains nonzero weights.</p>
+  </div>
+
+  <div class="g2 rv" style="margin-bottom:1.4rem;">
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;">
+        <h3 style="margin-bottom:0;">Head 1 — <span style="color:#c0b4ff;">Elimination</span></h3>
+        <span class="badge bp">tracks y-history</span>
+      </div>
+      <div style="overflow-x:auto;"><table class="hm" id="h1t"></table></div>
+      <div style="margin-top:1rem;">
+        <p style="font-size:.88rem;"><strong style="color:var(--text);">What to notice:</strong> Look at the x rows (x2, x3, x4, x5). Every single one attends exclusively to <span style="color:#f5c842;">y tokens</span> — zero attention to other x tokens. This head is asking: "which y-values have already been output?" It scans the entire y-history to build a picture of what's been used.</p>
+        <div class="note" style="font-size:.88rem;margin:.8rem 0 0;">x2 → y1: 1.00. x3 → y1+y2. x4 → y1+y2+y3. The pattern is perfectly consistent: each x looks at all preceding y tokens, and nothing else.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;">
+        <h3 style="margin-bottom:0;">Head 2 — <span style="color:#f5c842;">Recall</span></h3>
+        <span class="badge by">local (x,y) binding</span>
+      </div>
+      <div style="overflow-x:auto;"><table class="hm" id="h2t"></table></div>
+      <div style="margin-top:1rem;">
+        <p style="font-size:.88rem;"><strong style="color:var(--text);">What to notice:</strong> y tokens attend strongly to <em>themselves</em> (y2→y2: 0.93, y3→y3: 1.00). x tokens attend primarily to the immediately preceding y (x3→y2: 0.92, x4→y3: 1.00). This creates tight local bonds: each x is linked to its answer.</p>
+        <div class="note y" style="font-size:.88rem;margin:.8rem 0 0;">When x₁ repeats as x₅, it has the same token embedding. The head's local bonding pattern, combined with the FFN (see next section), allows the model to route this to the correct y₁.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card rv">
+    <h3>Head Symmetry — Why the Roles Sometimes Swap</h3>
+    <p>There is nothing in the architecture that says "Head 1 must do elimination." The two heads are mathematically symmetric. Across different random seeds, gradient descent sometimes assigns elimination to Head 1, sometimes to Head 2. The <strong>functional split is always the same</strong> — only the label changes.</p>
+    <div class="note g" style="font-size:.88rem;margin:0;">This is actually evidence that the specialization is robust. The model reliably converges to a two-role solution regardless of initialization. It always needs one of each — it just doesn't care which one gets which job.</div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════ RECALL MECHANISM ═══════════════════════════════ -->
+<section id="mech">
+<div class="wrap">
+  <span class="tag">Section 10</span>
+  <h2>How <span class="hl2">Recall</span> Actually Works — Attention + FFN</h2>
+
+  <div class="note rv" style="font-size:.95rem;margin-bottom:1.4rem;">The attention map for the recall head shows a suspicious pattern: x tokens attend to the immediately preceding y, not to an earlier x1. So how does the model recall y1 when x1 repeats? The answer is that attention and the FFN do different jobs.</div>
+
+  <div class="card rv" style="margin-bottom:1.4rem;">
+    <h3>Step 1: What Attention Does</h3>
+    <p>The recall head (Head 2) creates tight <strong>local bonds</strong> between consecutive (x, y) pairs. Specifically:</p>
+    <div style="background:var(--surf2);border-radius:8px;padding:1rem 1.3rem;margin:.8rem 0;font-family:'Space Mono',monospace;font-size:12px;line-height:2.2;">
+      <div>y₁ attends to itself: <span style="color:var(--green);">1.00</span> → y₁'s output representation is strongly self-anchored</div>
+      <div>x₂ attends to y₁: <span style="color:var(--green);">1.00</span> → x₂ absorbs y₁'s representation</div>
+      <div>y₂ attends to itself: <span style="color:var(--green);">0.93</span> → y₂ is self-anchored</div>
+      <div>x₃ attends to y₂: <span style="color:var(--green);">0.92</span> → x₃ absorbs y₂'s representation</div>
+    </div>
+    <p style="font-size:.9rem;">This creates a chain: each x token's post-attention representation is heavily colored by the y token that preceded it. The (x, y) pair is encoded as a unit.</p>
+  </div>
+
+  <div class="card rv" style="margin-bottom:1.4rem;">
+    <h3>Step 2: What the FFN Does</h3>
+    <p>After attention, each token passes through the Feed-Forward Network — two linear layers with a ReLU in between. The FFN is applied <strong>independently to each position</strong> (it does not mix information between positions).</p>
+    <p>Research on transformers (Geva et al., 2021: "Transformer Feed-Forward Layers Are Key-Value Memories") has shown that FFN layers act as <strong>associative memories</strong>: the first layer's weights are "keys" and the second layer's weights are "values." The FFN learns to map input patterns to output content.</p>
+    <div class="note" style="font-size:.88rem;">When x₁ repeats at position 8, its token embedding is identical to when it first appeared. The FFN — acting as a key-value store — recognizes this embedding pattern and returns y₁'s value, regardless of what elimination would suggest.</div>
+  </div>
+
+  <div class="card rv" style="margin-bottom:1.4rem;">
+    <h3>The Full Recall Mechanism</h3>
+    <div style="position:relative;padding-left:2rem;">
+      <div style="position:absolute;left:0;top:6px;bottom:6px;width:2px;background:linear-gradient(180deg,var(--purple),var(--green));border-radius:2px;"></div>
+      <div style="margin-bottom:1.4rem;padding-left:.5rem;">
+        <h3 style="color:var(--text);font-size:1rem;">Training on repeated sequences</h3>
+        <p style="font-size:.9rem;">The model sees thousands of examples where x repeats and the correct answer is the <em>earlier</em> y — not the unused one. This creates a loss signal that pure elimination cannot minimize.</p>
+      </div>
+      <div style="margin-bottom:1.4rem;padding-left:.5rem;">
+        <h3 style="color:var(--text);font-size:1rem;">Head 2 forms (x,y) local bonds via attention</h3>
+        <p style="font-size:.9rem;">Each y position's representation becomes a stable anchor for its value (strong self-attention). Each x absorbs its preceding y. The pair is encoded as a unit in the residual stream.</p>
+      </div>
+      <div style="margin-bottom:1.4rem;padding-left:.5rem;">
+        <h3 style="color:var(--text);font-size:1rem;">FFN performs associative lookup</h3>
+        <p style="font-size:.9rem;">When x₁ repeats at position 8, its token embedding is identical to when it first appeared. The FFN recognizes this embedding pattern and returns y₁'s value, regardless of what elimination would suggest.</p>
+      </div>
+      <div style="padding-left:.5rem;">
+        <h3 style="color:var(--text);font-size:1rem;">Head 1's elimination signal is overridden</h3>
+        <p style="font-size:.9rem;">Both signals feed into the final prediction. When recall is strong (99.9%), it dominates even though elimination says "pick the unused value." The model has learned to trust recall when the context demands it.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card rv">
+    <h3>Why we can't be 100% certain it's the FFN</h3>
+    <p style="font-size:.9rem;">We can observe the attention weights directly — that's what the heatmaps show. But the FFN's internal operation is less transparent. What we <em>can</em> say confidently:</p>
+    <div class="g2" style="margin-top:.8rem;">
+      <div class="note g" style="font-size:.88rem;margin:0;"><strong>Confirmed:</strong> The recall head's attention pattern (local x→preceding y bonding) is necessary but not sufficient. Attention alone cannot perform a lookup to an x-position that isn't being attended to.</div>
+      <div class="note y" style="font-size:.88rem;margin:0;"><strong>Strongly implied:</strong> The FFN must be completing the recall — it's the only other component with the capacity to perform position-independent associative lookups. This is consistent with Geva et al. (2021) and follow-up work on transformer memory.</div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- SUMMARY -->
+<section id="summary">
+<div class="wrap">
+  <span class="tag">Section 11</span>
+  <h2><span class="hl2">Summary</span> — The Full Story</h2>
+
+  <div class="g2 rv" style="margin-bottom:1.4rem;">
+    <div>
+      <div class="card" style="margin-bottom:1.2rem;">
+        <h3>What We Built</h3>
+        <p style="font-size:.9rem;">A minimal causal transformer (1 layer, d=32, 2 heads) trained on a permutation-lookup task — the model must read (x,y) pairs from context and answer queries on unseen permutations.</p>
+      </div>
+      <div class="card" style="margin-bottom:1.2rem;">
+        <h3>Results Comparison</h3>
+        <table class="ctable">
+          <tr><th>Config</th><th>Elimination</th><th>Recall</th><th>Loss</th></tr>
+          <tr><td style="font-family:'Space Mono',monospace;font-size:11px;">d=16, 1h, normal</td><td style="color:var(--green);">✓ 99.9%</td><td style="color:var(--red);">✗ 0.01%</td><td style="font-family:'Space Mono',monospace;font-size:11px;">0.959</td></tr>
+          <tr><td style="font-family:'Space Mono',monospace;font-size:11px;">d=32, 1h, repeated</td><td style="color:var(--green);">✓ 99.9%</td><td style="color:var(--yellow);">~ 27%</td><td style="font-family:'Space Mono',monospace;font-size:11px;">1.054</td></tr>
+          <tr><td style="font-family:'Space Mono',monospace;font-size:11px;">d=32, 2h, repeated</td><td style="color:var(--green);">✓ 99.9%</td><td style="color:var(--green);">✓ 99.9%</td><td style="font-family:'Space Mono',monospace;font-size:11px;">0.960</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h3>Key Numbers</h3>
+        <div style="font-family:'Space Mono',monospace;font-size:12px;line-height:2.2;color:var(--muted);">
+          <div>Random baseline loss: <span style="color:var(--text);">ln(5) = 1.609</span></div>
+          <div>Pure elimination ceiling: <span style="color:var(--text);">≈ 0.957</span></div>
+          <div>Final model loss: <span style="color:var(--green);">0.960</span></div>
+          <div>Recall probe accuracy: <span style="color:var(--green);">99.91%</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h3>The 5 Core Findings</h3>
+        <div style="margin-top:.5rem;">
+          <div style="display:flex;gap:.8rem;margin-bottom:1rem;align-items:flex-start;">
+            <span class="badge bp" style="flex-shrink:0;margin-top:2px;">1</span>
+            <p style="font-size:.88rem;margin:0;"><strong>Loss can be misleading.</strong> The d=16 model achieves near-identical loss yet fails completely at recall. You must probe to understand the mechanism.</p>
+          </div>
+          <div style="display:flex;gap:.8rem;margin-bottom:1rem;align-items:flex-start;">
+            <span class="badge by" style="flex-shrink:0;margin-top:2px;">2</span>
+            <p style="font-size:.88rem;margin:0;"><strong>Models learn what training rewards.</strong> Without repeated sequences there is zero gradient signal toward recall. Add the signal → the model finds the skill.</p>
+          </div>
+          <div style="display:flex;gap:.8rem;margin-bottom:1rem;align-items:flex-start;">
+            <span class="badge bg" style="flex-shrink:0;margin-top:2px;">3</span>
+            <p style="font-size:.88rem;margin:0;"><strong>The second head enabled a qualitative leap.</strong> Not just more capacity — a structurally different computation. One head for elimination, one for recall.</p>
+          </div>
+          <div style="display:flex;gap:.8rem;margin-bottom:1rem;align-items:flex-start;">
+            <span class="badge br" style="flex-shrink:0;margin-top:2px;">4</span>
+            <p style="font-size:.88rem;margin:0;"><strong>Head specialization is emergent and robust.</strong> No head was told its role. The split appears consistently — only the head numbering varies across seeds.</p>
+          </div>
+          <div style="display:flex;gap:.8rem;align-items:flex-start;">
+            <span class="badge bp" style="flex-shrink:0;margin-top:2px;">5</span>
+            <p style="font-size:.88rem;margin:0;"><strong>Recall is attention + FFN together.</strong> Attention forms the associations; the FFN performs the lookup. Neither is sufficient alone.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card rv" style="text-align:center;padding:3rem;">
+    <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.2em;text-transform:uppercase;margin-bottom:1rem;">Core insight</div>
+    <p style="font-family:'Syne',sans-serif;font-size:clamp(1.1rem,2.2vw,1.65rem);font-weight:700;line-height:1.45;max-width:720px;margin:0 auto;">
+      Multi-head attention discovers <span class="hl">complementary functional roles</span> without being told to — one head tracking what has been used, one binding what belongs together. This <span class="hl2">emergent modularity</span> is not designed. It is found. And it only appears when the training data actually requires it.
+    </p>
+  </div>
+</div>
+</section>
+
+<div style="height:56px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:center;">
+  <span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.1em;">Minimal Transformer Interpretability — d=32, nhead=2, 1 layer, V=5, 50 epochs, repeat_ratio=0.30</span>
+</div>
+
+<script>
+const ro=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('vis');}),{threshold:.08});
+document.querySelectorAll('.rv').forEach(el=>ro.observe(el));
+document.querySelectorAll('.snav .sbtn').forEach(btn=>{
+  btn.addEventListener('click',function(){
+    const nav=this.closest('.snav');
+    const card=nav.nextElementSibling;
+    nav.querySelectorAll('.sbtn').forEach(b=>b.classList.remove('on'));
+    this.classList.add('on');
+    const s=this.dataset.step;
+    card.querySelectorAll('.sc').forEach(c=>c.classList.remove('on'));
+    card.querySelector('[data-step="'+s+'"]').classList.add('on');
+  });
+});
+const labels=['x1','y1','x2','y2','x3','y3','x4','y4','x5'];
+const h1=[[1,0,0,0,0,0,0,0,0],[.11,.89,0,0,0,0,0,0,0],[0,1,0,0,0,0,0,0,0],[0,0,.06,.93,0,0,0,0,0],[0,.05,0,.92,.03,0,0,0,0],[0,0,0,0,0,1,0,0,0],[0,0,0,0,0,1,0,0,0],[.23,0,0,.01,.01,.07,0,.68,0],[.01,0,.02,.08,.01,0,0,0,.87]];
+const h2=[[1,0,0,0,0,0,0,0,0],[.29,.71,0,0,0,0,0,0,0],[0,.99,.01,0,0,0,0,0,0],[.04,.45,.02,.49,0,0,0,0,0],[0,.52,0,.48,0,0,0,0,0],[.01,.39,.04,.34,.01,.21,0,0,0],[0,.37,0,.36,0,.26,0,0,0],[.02,.22,.02,.25,.01,.21,.02,.26,0],[0,.11,0,.19,0,.31,0,.36,.01]];
+function vc(v){if(v<.005)return'rgba(12,10,30,.5)';const t=Math.min(v,1);if(t<.3){const s=t/.3;return`rgba(${Math.round(40+s*30)},${Math.round(20+s*90)},${Math.round(90+s*80)},.92)`;}if(t<.7){const s=(t-.3)/.4;return`rgba(${Math.round(70+s*30)},${Math.round(110+s*110)},${Math.round(170-s*50)},.92)`;}const s=(t-.7)/.3;return`rgba(${Math.round(100+s*145)},${Math.round(220+s*25)},${Math.round(120-s*95)},.95)`;}
+function buildHM(el,data){const hr=document.createElement('tr');hr.appendChild(document.createElement('th'));labels.forEach(l=>{const th=document.createElement('th');th.textContent=l;hr.appendChild(th);});el.appendChild(hr);data.forEach((row,i)=>{const tr=document.createElement('tr');const lbl=document.createElement('th');lbl.textContent=labels[i];tr.appendChild(lbl);row.forEach((v,j)=>{const td=document.createElement('td');if(j<=i){td.style.background=vc(v);td.textContent=v>.005?v.toFixed(2):'';td.style.color=v>.55?'rgba(0,0,0,.85)':'rgba(255,255,255,.9)';}tr.appendChild(td);});el.appendChild(tr);});}
+buildHM(document.getElementById('h1t'),h1);
+buildHM(document.getElementById('h2t'),h2);
+</script>
+</body>
+</html>
