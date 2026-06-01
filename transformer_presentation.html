@@ -373,58 +373,182 @@ table.hm td{width:44px;height:36px;text-align:center;font-size:10px;font-weight:
 <section id="loss">
 <div class="wrap">
   <span class="tag">Section 04</span>
-  <h2>How <span class="hl3">Loss</span> is Computed — Step by Step</h2>
+  <h2>How the <span class="hl3">Teacher</span> Grades the Test (Loss)</h2>
 
-  <div class="note rv" style="font-size:.95rem;margin-bottom:1.4rem;">Loss is the number that training minimizes. Understanding exactly what it measures here is essential.</div>
+  <div class="note rv" style="font-size:.95rem;margin-bottom:1.4rem;">Loss is the single number that trains the model. It helps to think of the Model as a <strong>student taking a test</strong>, and the Loss Function as the <strong>teacher grading it</strong>. Here is exactly what happens.</div>
 
   <div class="card rv" style="margin-bottom:1.4rem;">
-    <h3>What is Cross-Entropy Loss?</h3>
-    <p>At each $y$-prediction position, the model outputs a probability distribution over the 5 possible values. Cross-entropy measures how wrong that distribution is:</p>
-    <div style="background:var(--surf2);border-radius:8px;padding:1.2rem;margin:.8rem 0;font-family:'Space Mono',monospace;font-size:12px;line-height:2;">
-      <div style="color:var(--muted);">CE_loss = <span style="color:var(--text);">−log( P(correct answer) )</span></div>
-      <div style="color:var(--muted);font-size:11px;margin-top:.4rem;">If model says P(y=3) = 0.90 → loss = −log(0.90) = <span style="color:var(--green);">0.105 (low, good)</span></div>
-      <div style="color:var(--muted);font-size:11px;">If model says P(y=3) = 0.20 → loss = −log(0.20) = <span style="color:var(--red);">1.609 (high, bad)</span></div>
+    <h3>The "Aha!" Moment: Zooming in on a Single Question</h3>
+    <p style="font-size:.9rem;">Let's look at the exact moment the very first pair appears. The sequence starts with <code style="background:var(--surf); border:1px solid var(--border); padding: 2px 5px; border-radius:4px;">x₁ = 3</code> and the target answer key is <code style="background:var(--surf); border:1px solid var(--border); padding: 2px 5px; border-radius:4px;">y₁ = 3</code>.</p>
+    
+    <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1.5rem; background:#090916; border:1px solid var(--border); border-radius:8px; padding:1.5rem; margin-top:1.5rem;">
+      
+      <!-- Step 1 -->
+      <div style="flex:1; min-width: 140px;">
+        <div style="font-family:'Space Mono',monospace; font-size:10px; color:var(--muted); text-transform:uppercase; margin-bottom:10px; letter-spacing:0.05em;">Step 1: The Question</div>
+        <div style="background:rgba(139,124,248,.1); border:1px solid rgba(139,124,248,.3); padding:1rem; border-radius:8px; text-align:center;">
+          <span style="font-size:.9rem; color:#c0b4ff; display:block; margin-bottom:5px;">Input Token</span>
+          <span class="tok tx" style="transform:scale(1.2);">3</span>
+        </div>
+      </div>
+      
+      <div style="color:var(--muted); font-size:1.5rem;">→</div>
+
+      <!-- Step 2 -->
+      <div style="flex:1.5; min-width: 200px;">
+        <div style="font-family:'Space Mono',monospace; font-size:10px; color:var(--muted); text-transform:uppercase; margin-bottom:10px; letter-spacing:0.05em;">Step 2: Student's Guess</div>
+        <div style="background:var(--surf2); border:1px solid var(--border); padding:0.8rem; border-radius:8px; font-family:'Space Mono',monospace; font-size:11px;">
+          <div style="display:flex; justify-content:space-between; opacity:0.4;"><span>y = 1</span><span>20%</span></div>
+          <div style="display:flex; justify-content:space-between; opacity:0.4;"><span>y = 2</span><span>20%</span></div>
+          <!-- Spotlight this row -->
+          <div style="display:flex; justify-content:space-between; background:rgba(78,240,176,.15); border: 1px dashed var(--green); padding: 4px; border-radius:4px; color:var(--green); font-weight:bold; margin: 4px -4px; transform: scale(1.05);"><span>y = 3</span><span>20%</span></div>
+          <div style="display:flex; justify-content:space-between; opacity:0.4;"><span>y = 4</span><span>20%</span></div>
+          <div style="display:flex; justify-content:space-between; opacity:0.4;"><span>y = 5</span><span>20%</span></div>
+        </div>
+      </div>
+
+      <div style="color:var(--muted); font-size:1.5rem;">→</div>
+
+      <!-- Step 3 & 4 -->
+      <div style="flex:1.2; min-width: 180px;">
+        <div style="font-family:'Space Mono',monospace; font-size:10px; color:var(--muted); text-transform:uppercase; margin-bottom:10px; letter-spacing:0.05em;">Steps 3 & 4: Grading (Loss)</div>
+        <div style="background:rgba(245,96,122,.1); border:1px solid rgba(245,96,122,.3); padding:1rem; border-radius:8px;">
+          <div style="font-size:.85rem; color:var(--text); margin-bottom:10px; line-height:1.4;">Teacher looks at the answer key: Target is <strong>3</strong>.</div>
+          <div style="font-size:.85rem; color:var(--muted); margin-bottom:5px;">Extract probability: <strong>0.20</strong></div>
+          <div style="font-family:'Space Mono',monospace; font-size:12px; color:#f5607a; font-weight:700;">Loss = -log(0.20) <br>= 1.609</div>
+        </div>
+      </div>
     </div>
-    <div class="note y" style="font-size:.88rem;margin:0;">Random guessing among 5 values gives P = 0.20 each → loss = −log(0.20) = <strong>ln(5) ≈ 1.609</strong>. This is the theoretical ceiling. A model that does better than this has learned something.</div>
+    
+    <div class="note" style="margin-top:1.2rem;">
+      <strong style="color:var(--text);">Mathematical Balancing:</strong> Notice how the teacher <em>completely ignores</em> the probabilities the model assigned to 1, 2, 4, and 5. Why? Because probabilities must mathematically add up to 100%. By yelling at the model to push the probability of the <strong>correct index UP</strong>, the system is mathematically forced to push the probabilities of all the <strong>wrong indexes DOWN</strong> automatically. 
+    </div>
   </div>
 
   <div class="card rv" style="margin-bottom:1.4rem;">
-    <h3>The Masking — Why We Don't Train on Every Position</h3>
-    <pre><span class="cm"># mask[::2] = 1.0 means positions 0, 2, 4, 6, 8 get mask=1 (active)</span>
-<span class="cm"># positions 1, 3, 5, 7 get mask=0 (ignored)</span>
+    <h3>Grading the Entire Sequence at Once (The Forward Pass)</h3>
+    <p style="font-size:.9rem;margin-bottom:1.2rem;">Transformers don't work step-by-step in a loop. They predict <strong>all 9 outputs simultaneously</strong>. Then, the loss function grabs all 9 predictions, throws out (masks) the ones where the model was asked to predict the next random <code style="color:var(--purple)">x</code>, and averages the penalty scores for the 5 actual questions (<code style="color:var(--yellow)">y</code> targets).</p>
+    
+<!-- Big Sequence Matrix Visualization -->
+    <div style="background:#090916; border:1px solid var(--border); border-radius:8px; padding: 1.5rem; overflow-x:auto;">
+      <div style="display:flex; gap:6px; min-width: 720px; text-align:center;">
+        
+        <!-- Headers -->
+        <div style="display:flex; flex-direction:column; justify-content:space-between; padding-right:1rem; font-family:'Space Mono',monospace; font-size:10px; color:var(--muted); width:80px; flex-shrink:0;">
+          <div style="height:35px; display:flex; align-items:center; justify-content:flex-end;">Input</div>
+          <div style="height:95px; display:flex; align-items:center; justify-content:flex-end; color:var(--purple);">Model<br>Dist</div>
+          <div style="height:30px; display:flex; align-items:center; justify-content:flex-end;">Target</div>
+          <div style="height:40px; display:flex; align-items:center; justify-content:flex-end; color:var(--green);">CE Penalty</div>
+        </div>
 
-loss_elementwise = criterion(logits.view(<span class="nm">-1</span>, logits.size(<span class="nm">-1</span>)), targets.view(<span class="nm">-1</span>))
-<span class="cm"># loss_elementwise shape: [batch*9] — one loss number per position per sample</span>
+        <!-- Position 0 (Active) -->
+        <div style="flex:1; background:rgba(78,240,176,.05); border:1px dashed rgba(78,240,176,.3); border-radius:8px; padding:8px 4px; display:flex; flex-direction:column; gap:8px;">
+          <div class="tok tx" style="margin:0 auto; width:28px; height:28px; font-size:12px;">3</div>
+          <div style="font-family:'Space Mono',monospace; font-size:9.5px; line-height:1; color:var(--muted); height:95px; display:flex; flex-direction:column; justify-content:space-evenly; background:var(--surf2); border-radius:4px; padding:4px;">
+            <span>1:<span style="color:var(--text);">.2</span></span><span>2:<span style="color:var(--text);">.2</span></span><span style="color:var(--green); font-weight:bold; font-size:10.5px;">3:<span style="color:var(--text);">.2</span></span><span>4:<span style="color:var(--text);">.2</span></span><span>5:<span style="color:var(--text);">.2</span></span>
+          </div>
+          <div class="tok ty" style="margin:0 auto; width:28px; height:28px; font-size:12px; outline: 2px solid var(--green);">3</div>
+          <div style="font-family:'Space Mono',monospace; font-size:11px; color:#f5607a; padding-top:4px;">1.61</div>
+        </div>
 
-masked_loss = (loss_elementwise * masks.view(<span class="nm">-1</span>)).sum()
-<span class="cm"># multiply by mask → zero out x-positions, keep only y-positions</span>
+        <!-- Position 1 (Masked) -->
+        <div style="flex:1; background:transparent; border:1px solid transparent; opacity:0.4; padding:8px 4px; display:flex; flex-direction:column; gap:8px; filter: grayscale(1);">
+          <div class="tok ty" style="margin:0 auto; width:28px; height:28px; font-size:12px;">3</div>
+          <div style="height:95px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+             <span class="badge" style="background:var(--border);">TRASHED</span>
+          </div>
+          <div class="tok tx" style="margin:0 auto; width:28px; height:28px; font-size:12px;">4</div>
+          <div style="font-family:'Space Mono',monospace; font-size:11px; padding-top:4px;">mask</div>
+        </div>
 
-loss = masked_loss / masks.sum()
-<span class="cm"># divide by number of active tokens (5 per sample) → average loss per y-prediction</span></pre>
-    <div class="note" style="font-size:.88rem;margin-top:.8rem;">Why mask? Because predicting the next $x$ is trivial and meaningless — $x$ values are chosen randomly by the dataset and don't follow any learnable pattern. Including them in the loss would add noise and dilute the signal.</div>
+        <!-- Position 2 (Active) -->
+        <div style="flex:1; background:rgba(78,240,176,.05); border:1px dashed rgba(78,240,176,.3); border-radius:8px; padding:8px 4px; display:flex; flex-direction:column; gap:8px;">
+          <div class="tok tx" style="margin:0 auto; width:28px; height:28px; font-size:12px;">4</div>
+          <div style="font-family:'Space Mono',monospace; font-size:9.5px; line-height:1; color:var(--muted); height:95px; display:flex; flex-direction:column; justify-content:space-evenly; background:var(--surf2); border-radius:4px; padding:4px;">
+            <span>1:<span style="color:var(--text);">.25</span></span><span>2:<span style="color:var(--text);">.25</span></span><span style="opacity:0.2;">3:0</span><span>4:<span style="color:var(--text);">.25</span></span><span style="color:var(--green); font-weight:bold; font-size:10.5px;">5:<span style="color:var(--text);">.25</span></span>
+          </div>
+          <div class="tok ty" style="margin:0 auto; width:28px; height:28px; font-size:12px; outline: 2px solid var(--green);">5</div>
+          <div style="font-family:'Space Mono',monospace; font-size:11px; color:#f5c842; padding-top:4px;">1.38</div>
+        </div>
+
+        <!-- Position 3 (Masked) -->
+        <div style="flex:1; opacity:0.4; padding:8px 4px; display:flex; flex-direction:column; gap:8px; filter: grayscale(1);">
+          <div class="tok ty" style="margin:0 auto; width:28px; height:28px; font-size:12px;">5</div>
+          <div style="height:95px; display:flex; flex-direction:column; align-items:center; justify-content:center;"><span class="badge" style="background:var(--border);">TRASHED</span></div>
+          <div class="tok tx" style="margin:0 auto; width:28px; height:28px; font-size:12px;">2</div>
+          <div style="font-family:'Space Mono',monospace; font-size:11px; padding-top:4px;">mask</div>
+        </div>
+
+        <!-- Position 4 (Active) -->
+        <div style="flex:1; background:rgba(78,240,176,.05); border:1px dashed rgba(78,240,176,.3); border-radius:8px; padding:8px 4px; display:flex; flex-direction:column; gap:8px;">
+          <div class="tok tx" style="margin:0 auto; width:28px; height:28px; font-size:12px;">2</div>
+          <div style="font-family:'Space Mono',monospace; font-size:9.5px; line-height:1; color:var(--muted); height:95px; display:flex; flex-direction:column; justify-content:space-evenly; background:var(--surf2); border-radius:4px; padding:4px;">
+            <span style="color:var(--green); font-weight:bold; font-size:10.5px;">1:<span style="color:var(--text);">.33</span></span><span>2:<span style="color:var(--text);">.33</span></span><span style="opacity:0.2;">3:0</span><span>4:<span style="color:var(--text);">.33</span></span><span style="opacity:0.2;">5:0</span>
+          </div>
+          <div class="tok ty" style="margin:0 auto; width:28px; height:28px; font-size:12px; outline: 2px solid var(--green);">1</div>
+          <div style="font-family:'Space Mono',monospace; font-size:11px; color:#f5c842; padding-top:4px;">1.09</div>
+        </div>
+
+        <!-- Position 5 (Masked) -->
+        <div style="flex:1; opacity:0.4; padding:8px 4px; display:flex; flex-direction:column; gap:8px; filter: grayscale(1);">
+          <div class="tok ty" style="margin:0 auto; width:28px; height:28px; font-size:12px;">1</div>
+          <div style="height:95px; display:flex; flex-direction:column; align-items:center; justify-content:center;"><span class="badge" style="background:var(--border);">TRASHED</span></div>
+          <div class="tok tx" style="margin:0 auto; width:28px; height:28px; font-size:12px;">1</div>
+          <div style="font-family:'Space Mono',monospace; font-size:11px; padding-top:4px;">mask</div>
+        </div>
+
+        <!-- Position 6 (Active) -->
+        <div style="flex:1; background:rgba(78,240,176,.05); border:1px dashed rgba(78,240,176,.3); border-radius:8px; padding:8px 4px; display:flex; flex-direction:column; gap:8px;">
+          <div class="tok tx" style="margin:0 auto; width:28px; height:28px; font-size:12px;">1</div>
+          <div style="font-family:'Space Mono',monospace; font-size:9.5px; line-height:1; color:var(--muted); height:95px; display:flex; flex-direction:column; justify-content:space-evenly; background:var(--surf2); border-radius:4px; padding:4px;">
+            <span style="opacity:0.2;">1:0</span><span>2:<span style="color:var(--text);">.5</span></span><span style="opacity:0.2;">3:0</span><span style="color:var(--green); font-weight:bold; font-size:10.5px;">4:<span style="color:var(--text);">.5</span></span><span style="opacity:0.2;">5:0</span>
+          </div>
+          <div class="tok ty" style="margin:0 auto; width:28px; height:28px; font-size:12px; outline: 2px solid var(--green);">4</div>
+          <div style="font-family:'Space Mono',monospace; font-size:11px; color:#4ef0b0; padding-top:4px;">0.69</div>
+        </div>
+
+        <!-- Position 7 (Masked) -->
+        <div style="flex:1; opacity:0.4; padding:8px 4px; display:flex; flex-direction:column; gap:8px; filter: grayscale(1);">
+          <div class="tok ty" style="margin:0 auto; width:28px; height:28px; font-size:12px;">4</div>
+          <div style="height:95px; display:flex; flex-direction:column; align-items:center; justify-content:center;"><span class="badge" style="background:var(--border);">TRASHED</span></div>
+          <div class="tok tx" style="margin:0 auto; width:28px; height:28px; font-size:12px;">5</div>
+          <div style="font-family:'Space Mono',monospace; font-size:11px; padding-top:4px;">mask</div>
+        </div>
+
+        <!-- Position 8 (Active) -->
+        <div style="flex:1; background:rgba(78,240,176,.05); border:1px dashed rgba(78,240,176,.3); border-radius:8px; padding:8px 4px; display:flex; flex-direction:column; gap:8px;">
+          <div class="tok tx" style="margin:0 auto; width:28px; height:28px; font-size:12px;">5</div>
+          <div style="font-family:'Space Mono',monospace; font-size:9.5px; line-height:1; color:var(--muted); height:95px; display:flex; flex-direction:column; justify-content:space-evenly; background:var(--surf2); border-radius:4px; padding:4px;">
+            <span style="opacity:0.2;">1:0</span><span style="color:var(--green); font-weight:bold; font-size:10.5px;">2:<span style="color:var(--text);">1.0</span></span><span style="opacity:0.2;">3:0</span><span style="opacity:0.2;">4:0</span><span style="opacity:0.2;">5:0</span>
+          </div>
+          <div class="tok ty" style="margin:0 auto; width:28px; height:28px; font-size:12px; outline: 2px solid var(--green);">2</div>
+          <div style="font-family:'Space Mono',monospace; font-size:11px; color:#4ef0b0; padding-top:4px;">0.00</div>
+        </div>
+
+      </div>
+    </div>
+    
+    <div style="text-align:center; padding:1.2rem; background:var(--surf); border-radius:8px; margin-top:10px;">
+      Final Backpropagation Average Loss: <br>
+      <code style="font-size:1rem; padding: 5px 10px; background:transparent; color:var(--text);"><span style="color:var(--green);">(1.61 + 1.38 + 1.09 + 0.69 + 0.00)</span> / 5 = <strong style="font-size:1.3rem;">0.957</strong></code>
+    </div>
   </div>
 
   <div class="card rv">
-    <h3>Loss at Each Position — What a Perfect Model Would See</h3>
-    <div class="g2" style="align-items:start;">
+    <h3>The Mathematical Glass Ceiling</h3>
+    <div class="g2" style="align-items:center;">
       <div>
-        <p style="font-size:.9rem;">The 5 $y$-positions have different difficulty levels:</p>
-        <table class="ctable" style="margin-top:.5rem;">
-          <tr><th>Step</th><th>Prior context</th><th>Best possible loss</th></tr>
-          <tr><td style="font-family:'Space Mono',monospace;">y₁</td><td style="font-size:.85rem;color:var(--muted);">None — 5 candidates</td><td style="font-family:'Space Mono',monospace;color:var(--red);">ln(5)≈1.609</td></tr>
-          <tr><td style="font-family:'Space Mono',monospace;">y₂</td><td style="font-size:.85rem;color:var(--muted);">1 pair seen — 4 candidates</td><td style="font-family:'Space Mono',monospace;color:var(--yellow);">ln(4)≈1.386</td></tr>
-          <tr><td style="font-family:'Space Mono',monospace;">y₃</td><td style="font-size:.85rem;color:var(--muted);">2 pairs — 3 candidates</td><td style="font-family:'Space Mono',monospace;color:var(--yellow);">ln(3)≈1.099</td></tr>
-          <tr><td style="font-family:'Space Mono',monospace;">y₄</td><td style="font-size:.85rem;color:var(--muted);">3 pairs — 2 candidates</td><td style="font-family:'Space Mono',monospace;color:var(--green);">ln(2)≈0.693</td></tr>
-          <tr><td style="font-family:'Space Mono',monospace;">y₅</td><td style="font-size:.85rem;color:var(--muted);">4 pairs — 1 candidate</td><td style="font-family:'Space Mono',monospace;color:var(--green);">0.000</td></tr>
-        </table>
+        <p style="font-size:.9rem;">Notice the CE math shown in the visualization above. Those are not random numbers — they represent the <strong>absolute minimum penalty possible</strong> if the model flawlessly tracks which numbers are used, but doesn't know the future (perfect elimination strategy).</p>
+        <p style="font-size:.9rem; margin-top:0.8rem;">
+          Our baseline trained model plateaus at a loss of roughly <strong>0.959</strong>. The calculation above reveals why: <strong style="color:var(--yellow)">it rests exactly on the theoretical floor for elimination-only</strong>. It spreads its probabilities evenly across available choices, successfully getting the penalty to 0.957, and can mathematically go no lower without a new skill.
+        </p>
       </div>
       <div>
-        <div class="note g" style="font-size:.88rem;margin-bottom:.8rem;">A model that only does elimination (tracks used values, uniform over the rest) would achieve roughly: (1.609+1.386+1.099+0.693+0.000)/5 ≈ <strong>0.957</strong> average loss per $y$-token.</div>
-        <div class="note y" style="font-size:.88rem;">Our model plateaus at ~0.959 — almost exactly this number. This tells us the baseline model is doing <strong>elimination only</strong> and nothing more.</div>
-        <div class="note r" style="font-size:.88rem;margin-top:.8rem;">The loss alone cannot tell you the mechanism. To know whether the model is using elimination or recall, you have to probe it — which we do in Section 07.</div>
+        <div class="note r" style="font-size:.88rem; margin:0;"><strong>The Takeaway:</strong> A loss of ~0.957 acts like a detective's clue. It tells us immediately what algorithm the neural network weights converged on (elimination) and hints that to do any better, or see a lower loss, we will have to trick it or alter the training rules to force "recall". To catch this in action, we probe the model in Section 07.</div>
       </div>
     </div>
   </div>
+
 </div>
 </section>
 
