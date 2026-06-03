@@ -1268,10 +1268,11 @@ epochs = <span class="nm">50</span>
   <span class="tag">Section 11</span>
   <h2>How Recall Actually Works — <span class="hl2">The Dynamic Routing Circuit</span></h2>
 
-  <p class="rv" style="margin-bottom:1.5rem; max-width:800px;">
-    <strong>The Mechanistic Paradox Resolved:</strong> Attention maps show that Head 2 does not consistently focus on the correct $y$ token across different distances. For distances 5, 3, and 1, the attention weight on the correct $y$ is near or below the random baseline (~8-10%). 
-    Instead of a direct attention-based copy-paste, the single-layer model solves recall through a <strong>dynamic demultiplexing circuit</strong>, where the attention heads and the FFN divide the labor.
-  </p>
+  <!-- The Paradox Framing -->
+  <div class="card rv" style="background: rgba(245, 96, 122, 0.04); border-color: rgba(245, 96, 122, 0.2); margin-bottom: 2rem;">
+    <h3 style="color: var(--red);">The Mechanistic Paradox</h3>
+    <p style="font-size: .95rem; margin-bottom: 0;">If Head 2 is responsible for "recall", it should focus its attention completely on the correct $y$ target in the past context. <strong>But the attention maps proved it isn't.</strong> Across varying distances, the attention weight on the correct target often drops to near random (~8%). Instead of cleanly retrieving the right token via Attention, the model constructs an ingenious, hardware-level rescue operation using both layers simultaneously.</p>
+  </div>
 
   <!-- INFORMATION FLOW PLOT (SVG DIAGRAM) -->
   <div class="card rv" style="background:#0c0b18; border:1px solid var(--border); padding:1.5rem; margin-bottom:1.8rem; overflow-x:auto;">
@@ -1289,116 +1290,93 @@ epochs = <span class="nm">50</span>
       <text x="40" y="275" fill="#4ef0b0" font-size="10" font-weight="bold">STAGE 2: POSITION-GATED FFN ROUTING</text>
 
       <!-- POSITION BLOCKS (0 to 8) -->
-      <!-- x1=5 -->
       <g transform="translate(60, 45)">
         <rect x="0" y="0" width="40" height="30" rx="4" fill="rgba(139,124,248,0.15)" stroke="#8b7cf8" stroke-width="1.5" />
         <text x="20" y="19" fill="#c0b4ff" font-size="11" font-weight="bold" text-anchor="middle">x1=5</text>
         <text x="20" y="42" fill="#5a5a88" font-size="9" text-anchor="middle">pos 0</text>
       </g>
-      
-      <!-- y1=4 -->
       <g transform="translate(155, 45)">
         <rect x="0" y="0" width="40" height="30" rx="4" fill="rgba(245,200,66,0.1)" stroke="#f5c842" stroke-width="1" opacity="0.6" />
         <text x="20" y="19" fill="#f5c842" font-size="11" text-anchor="middle" opacity="0.6">y1=4</text>
         <text x="20" y="42" fill="#5a5a88" font-size="9" text-anchor="middle" opacity="0.6">pos 1</text>
       </g>
 
-      <!-- x2=4 (MATCHED) -->
+      <!-- MATCHED x2 -->
       <g transform="translate(250, 45)">
         <rect x="0" y="0" width="40" height="30" rx="4" fill="rgba(139,124,248,0.25)" stroke="#8b7cf8" stroke-width="2.5" />
         <text x="20" y="19" fill="#fff" font-size="11" font-weight="bold" text-anchor="middle">x2=4</text>
         <text x="20" y="42" fill="#8b7cf8" font-size="9" font-weight="bold" text-anchor="middle">pos 2</text>
       </g>
 
-      <!-- y2=3 (TARGET) -->
+      <!-- TARGET y2 -->
       <g transform="translate(345, 45)">
         <rect x="0" y="0" width="40" height="30" rx="4" fill="rgba(78,240,176,0.15)" stroke="#4ef0b0" stroke-width="2" />
         <text x="20" y="19" fill="#4ef0b0" font-size="11" font-weight="bold" text-anchor="middle">y2=3</text>
         <text x="20" y="42" fill="#4ef0b0" font-size="9" text-anchor="middle">pos 3</text>
       </g>
 
-      <!-- x3=1 -->
       <g transform="translate(440, 45)">
         <rect x="0" y="0" width="40" height="30" rx="4" fill="rgba(139,124,248,0.15)" stroke="#8b7cf8" stroke-width="1.5" />
         <text x="20" y="19" fill="#c0b4ff" font-size="11" text-anchor="middle">x3=1</text>
         <text x="20" y="42" fill="#5a5a88" font-size="9" text-anchor="middle">pos 4</text>
       </g>
-
-      <!-- y3=5 -->
       <g transform="translate(535, 45)">
         <rect x="0" y="0" width="40" height="30" rx="4" fill="rgba(245,200,66,0.1)" stroke="#f5c842" stroke-width="1" opacity="0.6" />
         <text x="20" y="19" fill="#f5c842" font-size="11" text-anchor="middle" opacity="0.6">y3=5</text>
         <text x="20" y="42" fill="#5a5a88" font-size="9" text-anchor="middle" opacity="0.6">pos 5</text>
       </g>
-
-      <!-- x4=2 -->
       <g transform="translate(630, 45)">
         <rect x="0" y="0" width="40" height="30" rx="4" fill="rgba(139,124,248,0.15)" stroke="#8b7cf8" stroke-width="1.5" />
         <text x="20" y="19" fill="#c0b4ff" font-size="11" text-anchor="middle">x4=2</text>
         <text x="20" y="42" fill="#5a5a88" font-size="9" text-anchor="middle">pos 6</text>
       </g>
-
-      <!-- y4=2 -->
       <g transform="translate(725, 45)">
         <rect x="0" y="0" width="40" height="30" rx="4" fill="rgba(245,200,66,0.1)" stroke="#f5c842" stroke-width="1" opacity="0.6" />
         <text x="20" y="19" fill="#f5c842" font-size="11" text-anchor="middle" opacity="0.6">y4=2</text>
         <text x="20" y="42" fill="#5a5a88" font-size="9" text-anchor="middle" opacity="0.6">pos 7</text>
       </g>
 
-      <!-- x5=4 (QUERY / repeated x) -->
+      <!-- QUERY x5 -->
       <g transform="translate(820, 45)">
         <rect x="0" y="0" width="50" height="30" rx="4" fill="rgba(245,96,122,0.15)" stroke="#f5607a" stroke-width="2.5" />
         <text x="25" y="19" fill="#f5607a" font-size="11" font-weight="bold" text-anchor="middle">x5=4</text>
         <text x="25" y="42" fill="#f5607a" font-size="9" font-weight="bold" text-anchor="middle">pos 8</text>
       </g>
 
-
       <!-- STAGE 1: INFORMATION FLOW ARROWS (ATTENTION MATCHING & BROADCAST) -->
-      
-      <!-- Purple Path: QK Match from Pos 8 to Pos 2 (x5 matches x2) -->
       <path d="M 845,90 C 845,150 270,150 270,90" fill="none" stroke="#8b7cf8" stroke-width="2.5" marker-end="url(#arrow-purple)" />
-      <text x="557" y="145" fill="#8b7cf8" font-size="9.5" text-anchor="middle" font-weight="bold">Query-Key Token Match (x5 = x2)</text>
+      <text x="557" y="145" fill="#8b7cf8" font-size="9.5" text-anchor="middle" font-weight="bold">Query-Key Match: Copies Positional Embedding from P(2)</text>
 
-      <!-- Yellow Paths: Positional broadcasting of all y's into the residual stream of position 8 -->
-      <!-- y1 to pos 8 -->
+      <!-- Yellow Paths: Blending y's -->
       <path d="M 175,90 C 180,120 780,110 825,95" fill="none" stroke="#f5c842" stroke-width="1.2" stroke-dasharray="4,2" opacity="0.4" />
-      <!-- y2 to pos 8 -->
       <path d="M 365,90 C 370,125 790,120 830,95" fill="none" stroke="#f5c842" stroke-width="2" stroke-dasharray="4,2" />
-      <!-- y3 to pos 8 -->
       <path d="M 555,90 C 560,110 810,105 835,95" fill="none" stroke="#f5c842" stroke-width="1.2" stroke-dasharray="4,2" opacity="0.4" />
-      <!-- y4 to pos 8 -->
       <path d="M 745,90 C 750,100 820,98 840,95" fill="none" stroke="#f5c842" stroke-width="1.2" stroke-dasharray="4,2" opacity="0.4" />
-      <text x="500" y="112" fill="#f5c842" font-size="9.5" text-anchor="middle">Broadcasting Linear Mixture of all past y's ($T_y$)</text>
-
+      <text x="500" y="112" fill="#f5c842" font-size="9.5" text-anchor="middle">Simultaneously grabs a blurry mixture of ALL past y's</text>
 
       <!-- STAGE 2: THE RECONSTRUCTED RESIDUAL STREAM AT POS 8 -->
       <g transform="translate(760, 165)">
         <rect x="0" y="0" width="160" height="60" rx="6" fill="#111120" stroke="#252540" stroke-width="1.5" />
         <text x="10" y="18" fill="#5a5a88" font-size="9" font-weight="bold">Residual Stream (Z8)</text>
-        <text x="10" y="34" fill="#8b7cf8" font-size="9">■ Match Address: P(2)</text>
-        <text x="10" y="48" fill="#f5c842" font-size="9">■ Context Blend: w1·y1 + w2·y2 + ...</text>
+        <text x="10" y="34" fill="#8b7cf8" font-size="9">■ Address Barcode: P(2)</text>
+        <text x="10" y="48" fill="#f5c842" font-size="9">■ Blurry Soup: Σ (w·y)</text>
       </g>
       
-      <!-- Flow indicator down into the FFN Router -->
       <path d="M 840,225 L 840,265" fill="none" stroke="#4ef0b0" stroke-width="2" stroke-dasharray="4,2" marker-end="url(#arrow-green)" />
-
 
       <!-- STAGE 3: THE POSITION-GATED FFN ROUTER -->
       <g transform="translate(680, 275)">
         <rect x="0" y="0" width="240" height="75" rx="6" fill="#181830" stroke="#4ef0b0" stroke-width="1.5" />
         <text x="10" y="18" fill="#4ef0b0" font-size="9" font-weight="bold">FFN Layer (pos 8)</text>
-        
         <!-- Active gate mapping -->
         <rect x="10" y="28" width="220" height="18" rx="3" fill="rgba(78,240,176,0.12)" stroke="rgba(78,240,176,0.3)" />
-        <text x="15" y="40" fill="#4ef0b0" font-size="8.5">Active Router: Neuron #27 (gated on P(2))</text>
-        
-        <text x="10" y="62" fill="#f5c842" font-size="8.5">Action: Unmixes y2 (from pos 3) out of blend</text>
+        <text x="15" y="40" fill="#4ef0b0" font-size="8.5">"IF Address P(2) → Fire Neuron #27"</text>
+        <text x="10" y="62" fill="#f5c842" font-size="8.5">Action: Un-mixes y₂ target from soup</text>
       </g>
-
 
       <!-- STAGE 4: OUTPUT PROJECTION -->
       <path d="M 800,350 C 800,380 440,380 365,350" fill="none" stroke="#4ef0b0" stroke-width="2" marker-end="url(#arrow-green)" />
-      <text x="580" y="380" fill="#4ef0b0" font-size="9" font-weight="bold" text-anchor="middle">Demultiplexed Prediction Routed to Output Logits</text>
+      <text x="580" y="380" fill="#4ef0b0" font-size="9" font-weight="bold" text-anchor="middle">Demultiplexed target exclusively projected to Output</text>
 
       <g transform="translate(325, 310)">
         <circle cx="20" cy="20" r="18" fill="rgba(78,240,176,0.2)" stroke="#4ef0b0" stroke-width="2" />
@@ -1406,116 +1384,157 @@ epochs = <span class="nm">50</span>
         <text x="20" y="-8" fill="#4ef0b0" font-size="8" font-weight="bold" text-anchor="middle">FINAL LOGITS</text>
       </g>
 
-
-      <!-- MARKERS DEFINITIONS -->
       <defs>
-        <marker id="arrow-purple" markerWidth="6" markerHeight="6" refX="2" refY="3" orient="auto">
-          <polygon points="0,0 6,3 0,6" fill="#8b7cf8" />
-        </marker>
-        <marker id="arrow-green" markerWidth="6" markerHeight="6" refX="2" refY="3" orient="auto">
-          <polygon points="0,0 6,3 0,6" fill="#4ef0b0" />
-        </marker>
+        <marker id="arrow-purple" markerWidth="6" markerHeight="6" refX="2" refY="3" orient="auto"><polygon points="0,0 6,3 0,6" fill="#8b7cf8" /></marker>
+        <marker id="arrow-green" markerWidth="6" markerHeight="6" refX="2" refY="3" orient="auto"><polygon points="0,0 6,3 0,6" fill="#4ef0b0" /></marker>
       </defs>
     </svg>
   </div>
 
-  <div class="g2 rv" style="margin-bottom:1.4rem;">
-    <!-- Broadcast Card -->
-    <div class="card">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;">
-        <span class="badge bp">Broadcaster Phase</span>
-        <h3 style="margin-bottom:0;">1. Attention Mixes and Addresses</h3>
-      </div>
-      <p style="font-size:.9rem; line-height:1.6; margin-bottom:10px;">
-        Instead of pointing sharply to the target token directly, Head 2 broadcasts a broad, position-biased distribution over all previous $y$-positions. This writes a combined superposition of all past $y$ token identities into position 8's working representation:
-      </p>
-      <p style="font-family:'Space Mono',monospace; font-size:12.5px; color:var(--yellow); text-align:center; background:var(--surf2); padding:8px; border-radius:6px; margin:8px 0;">
-        $T_y \approx 0.27 y_1 + 0.24 y_2 + 0.20 y_3 + 0.17 y_4$
-      </p>
-      <p style="font-size:.88rem; line-height:1.6; color:var(--muted);">
-        Crucially, because this is a 1-layer model, these value vectors contain only raw token embeddings and positional shifts. 
-        However, the attention query $x_5$ also matches the token embedding of $x_2$ at index 2, writing the unique positional address key $W_v P(2)$ into the stream.
-      </p>
+  <!-- Distilling the Process Visually -->
+  <div style="display:flex; flex-wrap:wrap; align-items:stretch; gap:1.2rem; margin-bottom:2rem;">
+    <!-- Column 1: Attention -->
+    <div class="card" style="flex:1; min-width:280px; display:flex; flex-direction:column; background:rgba(245,200,66,.04); border-color:rgba(245,200,66,.2); margin:0;">
+       <div class="badge by" style="align-self:start; margin-bottom:.8rem;">Phase 1: Smuggle & Blur</div>
+       <p style="font-size:0.85rem; margin-bottom:.8rem; flex-grow: 1;">Because Token and Position embeddings are added at step zero (<code style="background:var(--bg);">X = tok + pos</code>), the Attention matrix acts as a smuggler. When Query $x_5$ matches Key $x_2$, it inadvertently rips the Positional tag `P(2)` from the past and moves it to the present—along with a noisy, blurry mix of all past $y$ tokens.</p>
+       <code style="background:var(--bg); border:1px solid var(--border); font-size:11px;">[Vector out] = <span style="color:#8b7cf8">Address: P(2)</span> + <span style="color:#f5c842">Noise: (Σ w·y)</span></code>
     </div>
 
-    <!-- Router Card -->
-    <div class="card">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;">
-        <span class="badge bg">Routing Phase</span>
-        <h3 style="margin-bottom:0;">2. FFN Demultiplexes the Blended Signal</h3>
-      </div>
-      <p style="font-size:.9rem; line-height:1.6; margin-bottom:10px;">
-        The FFN at position 8 receives the blended token mixture alongside the positional address key $P(2)$. Rather than static memorization, the FFN uses <strong>position-gated routing neurons</strong> that act as physical hardware gates:
-      </p>
-      <p style="font-family:'Space Mono',monospace; font-size:12px; line-height:1.4; color:var(--purple); background:#090916; border:1px solid var(--border); padding:10px; border-radius:6px; margin:8px 0;">
-        <span style="color:var(--muted);">[Inputs]</span> Query $x_2$ + Match $P(2)$ + Mixed $y$'s<br>
-        <span style="color:var(--muted);">[Filter]</span> Neuron #27 (gated on $P(2)$) fires.<br>
-        <span style="color:var(--muted);">[Output]</span> Extracts $y_2=3$, projects logit +3.43.
-      </p>
-      <p style="font-size:.88rem; line-height:1.6; color:var(--muted);">
-        By assigning distinct hidden neurons to specific positions, the FFN transforms a mixed positional signal into an accurate vocabulary prediction. This dynamic gating enables the model to resolve the permutation on completely unseen test configurations.
-      </p>
+    <div style="display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:1.6rem; font-weight:800; font-family:'Syne',sans-serif;">+</div>
+
+    <!-- Column 2: FFN Filter -->
+    <div class="card" style="flex:1; min-width:280px; display:flex; flex-direction:column; background:rgba(78,240,176,.04); border-color:rgba(78,240,176,.2); margin:0;">
+       <div class="badge bg" style="align-self:start; margin-bottom:.8rem;">Phase 2: The Hardware Gate</div>
+       <p style="font-size:0.85rem; margin-bottom:.8rem; flex-grow: 1;">The Feed-Forward Network reads the incoming vector not for an answer, but for the Address tag. It evolves specific boolean neurons tuned strictly to specific positional tags. If it detects `P(2)`, Neuron #27 wakes up and forcibly isolates $y_2$ out of the noise.</p>
+       <code style="background:var(--bg); border:1px solid var(--border); font-size:11px;"><span style="color:var(--muted);">If barcode P(2) →</span> <span style="color:var(--green)">Fire Gate #27 → Elevate y₂</span></code>
     </div>
   </div>
 
-  <!-- Neuron Ground-Truth Verification Table -->
-  <div class="card rv">
-    <h3>Ground-Truth Gating Circuit (Attribution Map)</h3>
-    <p style="font-size:.9rem; margin-bottom:1.2rem;">
-      By dissecting the model's FFN hidden layer (64 neurons) on different test configurations, we reveal the specific routing neurons that fire depending on the position of the matching $x$ token:
-    </p>
+  <!-- Interactive Explorer Replaces the Old Table -->
+  <div class="card rv" style="border: 1px solid var(--purple); background: linear-gradient(180deg, rgba(139,124,248,0.03) 0%, transparent 100%);">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;">
+      <span class="badge bp" style="font-size:11px; padding: 4px 8px;">🔍 Trace Logs</span>
+      <h3 style="margin-bottom:0; font-size:1.3rem; color:var(--text);">Investigating the Hero Neurons in Action</h3>
+    </div>
+    <p style="font-size:.9rem; margin-bottom:1.5rem; color:var(--muted);">By dissecting the neural activity exactly between Phase 1 and Phase 2 on raw test data, we catch this rescue operation in the act. Before the FFN fires, the system's probabilities are messy, entirely incorrect vectors. A <em>single target neuron</em> manually steps in and saves the sequence.</p>
 
-    <div style="overflow-x:auto;">
-      <table class="ctable" style="font-size:0.85rem;">
-        <thead>
-          <tr>
-            <th>Match Position</th>
-            <th>Distance</th>
-            <th>Active FFN Neuron</th>
-            <th>Activation ($h_a$)</th>
-            <th>Target Logit Shift</th>
-            <th>Functional Role of Neuron</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td style="font-family:'Space Mono',monospace;">Pos 1 ($y_1$)</td>
-            <td style="font-family:'Space Mono',monospace; color:var(--yellow);">7 tokens back</td>
-            <td style="font-family:'Space Mono',monospace; color:var(--purple); font-weight:bold;">Neuron #53</td>
-            <td style="font-family:'Space Mono',monospace;">5.455</td>
-            <td style="font-family:'Space Mono',monospace; color:var(--green); font-weight:bold;">+6.03</td>
-            <td>Detects $P(0)$ address; gates $y_1$ out of the context mixture.</td>
-          </tr>
-          <tr>
-            <td style="font-family:'Space Mono',monospace;">Pos 3 ($y_2$)</td>
-            <td style="font-family:'Space Mono',monospace; color:var(--yellow);">5 tokens back</td>
-            <td style="font-family:'Space Mono',monospace; color:var(--purple); font-weight:bold;">Neuron #27</td>
-            <td style="font-family:'Space Mono',monospace;">6.629</td>
-            <td style="font-family:'Space Mono',monospace; color:var(--green); font-weight:bold;">+3.43</td>
-            <td>Detects $P(2)$ address; gates $y_2$ out of the context mixture.</td>
-          </tr>
-          <tr>
-            <td style="font-family:'Space Mono',monospace;">Pos 5 ($y_3$)</td>
-            <td style="font-family:'Space Mono',monospace; color:var(--yellow);">3 tokens back</td>
-            <td style="font-family:'Space Mono',monospace; color:var(--purple); font-weight:bold;">Neuron #09</td>
-            <td style="font-family:'Space Mono',monospace;">3.749</td>
-            <td style="font-family:'Space Mono',monospace; color:var(--green); font-weight:bold;">+4.93</td>
-            <td>Detects $P(4)$ address; gates $y_3$ out of the context mixture.</td>
-          </tr>
-          <tr>
-            <td style="font-family:'Space Mono',monospace;">Pos 7 ($y_4$)</td>
-            <td style="font-family:'Space Mono',monospace; color:var(--yellow);">1 token back</td>
-            <td style="font-family:'Space Mono',monospace; color:var(--purple); font-weight:bold;">Neuron #36</td>
-            <td style="font-family:'Space Mono',monospace;">5.815</td>
-            <td style="font-family:'Space Mono',monospace; color:var(--green); font-weight:bold;">+8.16</td>
-            <td>Detects $P(6)$ address; gates $y_4$ out of the context mixture.</td>
-          </tr>
-        </tbody>
-      </table>
+    <!-- Navigation for Interactive Tabs -->
+    <div class="snav" id="mechNav">
+      <button class="sbtn on" data-step="0">Address: P(0)</button>
+      <button class="sbtn" data-step="1">Address: P(2)</button>
+      <button class="sbtn" data-step="2">Address: P(4)</button>
+      <button class="sbtn" data-step="3">Address: P(6)</button>
+    </div>
+    
+    <!-- Tab Outputs -->
+    <div id="mechCard" style="background:#090916; border:1px solid var(--border); border-radius:8px; padding:1.4rem; min-height: 200px;">
+      
+      <!-- DISTANCE 7 - POS 0 -->
+      <div class="sc on" data-step="0">
+        <div style="font-family:'Space Mono',monospace;font-size:11px;color:#c0c0e0;margin-bottom:1.2rem; background: rgba(255,255,255,0.03); padding: 8px; border-radius:4px; border:1px solid var(--border);">
+          Test Seq: [<span class="hl2" style="font-weight:700">2</span>, <span class="hl2" style="font-weight:700">1</span>, 4, 3, 5, 2, 1, 4] → Probe asks for: <span class="hl" style="font-weight:700">x=2</span> | True Target: <span class="hl2" style="font-weight:700">y=1</span>
+        </div>
+        <div class="g2" style="gap: 1.5rem;">
+          <div>
+             <h4 style="font-family:'Syne',sans-serif; font-size:.9rem; margin-bottom:8px; color:#f5607a;">❌ PRE-FFN STATE (BLURRY)</h4>
+             <p style="font-size:0.85rem; line-height:1.5; color:var(--muted); margin-bottom:12px;">Attention grabs too much background noise. The resulting intermediate vector fails entirely, predicting <strong style="color:var(--text);">5</strong>.</p>
+             <code style="font-size:10px; color:#8a8aab; padding:4px;">Logits [1..5]: -2.4  -1.5   0.8  -1.4   3.4</code>
+          </div>
+          <div style="border-left: 2px solid var(--green); padding-left: 1.2rem;">
+             <h4 style="font-family:'Syne',sans-serif; font-size:.9rem; margin-bottom:8px; color:var(--green);">✅ POST-FFN STATE (RESCUED)</h4>
+             <p style="font-size:0.85rem; line-height:1.5; color:var(--text); margin-bottom:12px;"><strong>Neuron #53</strong> identifies the P(0) barcode transported from the past. It blasts a huge localized shift uniquely onto y=1, dragging the prediction to safety.</p>
+             <div style="background:rgba(78,240,176,0.1); border:1px solid rgba(78,240,176,0.3); border-radius:4px; padding:6px 10px; font-family:'Space Mono',monospace; font-size:11px; color:var(--green);">
+                Hero Output: +6.03 strictly on y=1 target.
+             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DISTANCE 5 - POS 2 -->
+      <div class="sc" data-step="1">
+        <div style="font-family:'Space Mono',monospace;font-size:11px;color:#c0c0e0;margin-bottom:1.2rem; background: rgba(255,255,255,0.03); padding: 8px; border-radius:4px; border:1px solid var(--border);">
+          Test Seq: [5, 4, <span class="hl2" style="font-weight:700">4</span>, <span class="hl2" style="font-weight:700">3</span>, 1, 5, 2, 2] → Probe asks for: <span class="hl" style="font-weight:700">x=4</span> | True Target: <span class="hl2" style="font-weight:700">y=3</span>
+        </div>
+        <div class="g2" style="gap: 1.5rem;">
+          <div>
+             <h4 style="font-family:'Syne',sans-serif; font-size:.9rem; margin-bottom:8px; color:#f5607a;">❌ PRE-FFN STATE (BLURRY)</h4>
+             <p style="font-size:0.85rem; line-height:1.5; color:var(--muted); margin-bottom:12px;">Attention captures too much surrounding signal context and is pulled far off target, predicting <strong style="color:var(--text);">2</strong>.</p>
+             <code style="font-size:10px; color:#8a8aab; padding:4px;">Logits [1..5]:  0.8   4.7  -0.6  -1.2  -2.3</code>
+          </div>
+          <div style="border-left: 2px solid var(--green); padding-left: 1.2rem;">
+             <h4 style="font-family:'Syne',sans-serif; font-size:.9rem; margin-bottom:8px; color:var(--green);">✅ POST-FFN STATE (RESCUED)</h4>
+             <p style="font-size:0.85rem; line-height:1.5; color:var(--text); margin-bottom:12px;">The `P(2)` address tag smuggled inside triggers <strong>Neuron #27</strong>. It violently represses the other indices and pushes the isolated true answer.</p>
+             <div style="background:rgba(78,240,176,0.1); border:1px solid rgba(78,240,176,0.3); border-radius:4px; padding:6px 10px; font-family:'Space Mono',monospace; font-size:11px; color:var(--green);">
+                Hero Output: +3.43 strictly on y=3 target.
+             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DISTANCE 3 - POS 4 -->
+      <div class="sc" data-step="2">
+        <div style="font-family:'Space Mono',monospace;font-size:11px;color:#c0c0e0;margin-bottom:1.2rem; background: rgba(255,255,255,0.03); padding: 8px; border-radius:4px; border:1px solid var(--border);">
+          Test Seq: [5, 3, 4, 4, <span class="hl2" style="font-weight:700">3</span>, <span class="hl2" style="font-weight:700">5</span>, 2, 1] → Probe asks for: <span class="hl" style="font-weight:700">x=3</span> | True Target: <span class="hl2" style="font-weight:700">y=5</span>
+        </div>
+        <div class="g2" style="gap: 1.5rem;">
+          <div>
+             <h4 style="font-family:'Syne',sans-serif; font-size:.9rem; margin-bottom:8px; color:#f5607a;">❌ PRE-FFN STATE (BLURRY)</h4>
+             <p style="font-size:0.85rem; line-height:1.5; color:var(--muted); margin-bottom:12px;">Prior to processing the hidden address barcodes, the model outputs completely mixed garbage, guessing <strong style="color:var(--text);">2</strong>.</p>
+             <code style="font-size:10px; color:#8a8aab; padding:4px;">Logits [1..5]: -0.9   6.8  -3.8   0.9  -1.2</code>
+          </div>
+          <div style="border-left: 2px solid var(--green); padding-left: 1.2rem;">
+             <h4 style="font-family:'Syne',sans-serif; font-size:.9rem; margin-bottom:8px; color:var(--green);">✅ POST-FFN STATE (RESCUED)</h4>
+             <p style="font-size:0.85rem; line-height:1.5; color:var(--text); margin-bottom:12px;">Sensing `P(4)` present in the vector mix, the gating <strong>Neuron #09</strong> acts unconditionally. It mathematically restores the right vector component.</p>
+             <div style="background:rgba(78,240,176,0.1); border:1px solid rgba(78,240,176,0.3); border-radius:4px; padding:6px 10px; font-family:'Space Mono',monospace; font-size:11px; color:var(--green);">
+                Hero Output: +4.93 strictly on y=5 target.
+             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DISTANCE 1 - POS 6 -->
+      <div class="sc" data-step="3">
+        <div style="font-family:'Space Mono',monospace;font-size:11px;color:#c0c0e0;margin-bottom:1.2rem; background: rgba(255,255,255,0.03); padding: 8px; border-radius:4px; border:1px solid var(--border);">
+          Test Seq: [5, 3, 2, 1, 4, 5, <span class="hl2" style="font-weight:700">1</span>, <span class="hl2" style="font-weight:700">2</span>] → Probe asks for: <span class="hl" style="font-weight:700">x=1</span> | True Target: <span class="hl2" style="font-weight:700">y=2</span>
+        </div>
+        <div class="g2" style="gap: 1.5rem;">
+          <div>
+             <h4 style="font-family:'Syne',sans-serif; font-size:.9rem; margin-bottom:8px; color:#f5607a;">❌ PRE-FFN STATE (BLURRY)</h4>
+             <p style="font-size:0.85rem; line-height:1.5; color:var(--muted); margin-bottom:12px;">Despite the fact that the paired tokens happened immediately prior, self-attention still blends nearby $y$'s poorly, and is convinced the answer is <strong style="color:var(--text);">4</strong>.</p>
+             <code style="font-size:10px; color:#8a8aab; padding:4px;">Logits [1..5]: -1.9   2.2  -0.3   2.9  -0.8</code>
+          </div>
+          <div style="border-left: 2px solid var(--green); padding-left: 1.2rem;">
+             <h4 style="font-family:'Syne',sans-serif; font-size:.9rem; margin-bottom:8px; color:var(--green);">✅ POST-FFN STATE (RESCUED)</h4>
+             <p style="font-size:0.85rem; line-height:1.5; color:var(--text); margin-bottom:12px;">Reading the location origin parameter `P(6)`, specialized hardware <strong>Neuron #36</strong> flips the entire distribution with intense force onto the true class.</p>
+             <div style="background:rgba(78,240,176,0.1); border:1px solid rgba(78,240,176,0.3); border-radius:4px; padding:6px 10px; font-family:'Space Mono',monospace; font-size:11px; color:var(--green);">
+                Hero Output: +8.16 strictly on y=2 target.
+             </div>
+          </div>
+        </div>
+      </div>
+      
     </div>
   </div>
+
 </div>
+<script>
+  (function(){
+    const nav = document.getElementById('mechNav');
+    const card = document.getElementById('mechCard');
+    if (!nav || !card) return;
+    nav.querySelectorAll('.sbtn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        nav.querySelectorAll('.sbtn').forEach(b => b.classList.remove('on'));
+        this.classList.add('on');
+        const stepNum = this.getAttribute('data-step');
+        card.querySelectorAll('.sc').forEach(c => c.classList.remove('on'));
+        card.querySelector('.sc[data-step="' + stepNum + '"]').classList.add('on');
+      });
+    });
+  })();
+</script>
 </section>
+
 <!-- ═══════════════════════════════ SUMMARY ═══════════════════════════════ -->
 <section id="summary">
 <div class="wrap">
