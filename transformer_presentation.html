@@ -1364,6 +1364,390 @@ epochs = <span class="nm">50</span>
 </div>
 </section>
 
+<!-- ═══════════════════════════════ LOSS PLOTS ═══════════════════════════════ -->
+<section id="loss-plots">
+<div class="wrap">
+  <span class="tag">Section 13</span>
+  <h2><span class="hl">Training Loss</span> & Accuracy Metrics</h2>
+  
+  <p class="rv" style="margin-bottom:1.4rem;">The following visualizations map the exact convergence of the models over training epochs along with their final subgroup test accuracy scores. Notice the sharp phase transition in each learning curve where the model suddenly acquires the recall circuit, rapidly dropping to the theoretical minimum loss floor.</p>
+
+  <!-- EXPERIMENT 1: V = 5 -->
+  <div class="card rv" style="margin-bottom:1.4rem;">
+    <h3>Experiment: V = 5</h3>
+    <div style="font-family:'Space Mono',monospace; font-size:11px; color:var(--muted); margin-bottom:1rem;">
+      <span class="badge bg">d=32, nhead=2, layers=2</span> &nbsp;|&nbsp; 50 epochs &nbsp;|&nbsp; Theoretical Floor: 0.9575
+    </div>
+
+    <!-- Accuracy Metrics Grid -->
+    <div class="g2" style="margin-bottom: 1.5rem;">
+      <div style="background: var(--surf); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; display: flex; flex-direction: column; justify-content: center;">
+        <div style="font-family:'Space Mono',monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Subgroup 1 (Pure Elimination) Accuracy</div>
+        <div style="font-size: 1.8rem; font-weight: bold; color: var(--green); line-height: 1.1;">100.00%</div>
+        <div style="font-family:'Space Mono',monospace; font-size: 11px; color: var(--muted); margin-top: 2px;">(2522 / 2522 test sequences)</div>
+      </div>
+      <div style="background: var(--surf); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; display: flex; flex-direction: column; justify-content: center;">
+        <div style="font-family:'Space Mono',monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Subgroup 2 (Pure Recall) Accuracy</div>
+        <div style="font-size: 1.8rem; font-weight: bold; color: var(--green); line-height: 1.1;">100.00%</div>
+        <div style="font-family:'Space Mono',monospace; font-size: 11px; color: var(--muted); margin-top: 2px;">(2478 / 2478 test sequences)</div>
+      </div>
+    </div>
+    
+    <!-- Loss Plot -->
+    <div style="margin: 1.5rem 0; background:var(--surf2); border:1px solid var(--border); border-radius:8px; padding:1rem;">
+      <svg viewBox="0 0 860 250" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:250px;">
+        <line x1="60" y1="205.24934476373036" x2="820" y2="205.24934476373036" stroke="#f5607a" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.8"/>
+        <text x="65" y="200.24934476373036" fill="#f5607a" font-size="10" font-family="Space Mono,monospace">Floor: 0.9575</text>
+        <text x="50" y="224.0" fill="#5a5a88" font-size="10" text-anchor="end" font-family="Space Mono,monospace">0.93</text>
+        <text x="50" y="209.24934476373036" fill="#5a5a88" font-size="10" text-anchor="end" font-family="Space Mono,monospace">0.96</text>
+        <text x="50" y="116.62467238186518" fill="#5a5a88" font-size="10" text-anchor="end" font-family="Space Mono,monospace">1.11</text>
+        <text x="50" y="24.0" fill="#5a5a88" font-size="10" text-anchor="end" font-family="Space Mono,monospace">1.27</text>
+        <line x1="60" y1="20" x2="60" y2="220" stroke="#3a3a60" stroke-width="1.5"/>
+        <line x1="60" y1="220" x2="820" y2="220" stroke="#3a3a60" stroke-width="1.5"/>
+        <text x="60.0" y="234" fill="#5a5a88" font-size="10" text-anchor="middle" font-family="Space Mono,monospace">1</text>
+        <text x="230.6122448979592" y="234" fill="#5a5a88" font-size="10" text-anchor="middle" font-family="Space Mono,monospace">12</text>
+        <text x="432.2448979591837" y="234" fill="#5a5a88" font-size="10" text-anchor="middle" font-family="Space Mono,monospace">25</text>
+        <text x="618.3673469387755" y="234" fill="#5a5a88" font-size="10" text-anchor="middle" font-family="Space Mono,monospace">37</text>
+        <text x="820.0" y="234" fill="#5a5a88" font-size="10" text-anchor="middle" font-family="Space Mono,monospace">50</text>
+        <polyline points="60.0,34.74000579802754 75.51020408163265,143.18678523041243 91.0204081632653,152.17964419043568 106.53061224489795,153.71789638096593 122.0408163265306,154.48702247623112 137.55102040816325,155.0194943883377 153.0612244897959,155.31531211728577 168.57142857142856,155.49280275465463 184.0816326530612,157.2677091283435 199.59183673469389,165.43227844731194 215.10204081632654,180.34149198629768 230.6122448979592,203.47443839004157 246.12244897959184,204.71687285162372 261.6326530612245,204.95352703478224 277.1428571428571,205.0718541263615 292.65306122448976,205.24934476373036 308.1632653061224,205.30850830951996 323.6734693877551,205.3676718553096 339.18367346938777,204.95352703478224 354.6938775510204,205.54516249267851 370.2040816326531,205.54516249267851 385.7142857142857,205.54516249267851 401.2244897959184,205.48599894688888 416.734693877551,205.60432603846814 432.2448979591837,205.60432603846814 447.7551020408163,205.0718541263615 463.26530612244903,205.8409802216266 478.77551020408157,205.95930731320584 494.2857142857143,205.90014376741624 509.7959183673469,205.90014376741624 525.3061224489795,205.95930731320584 540.8163265306123,206.1959614963644 556.3265306122448,206.07763440478516 571.8367346938776,206.25512504215402 587.3469387755102,206.49177922531248 602.8571428571429,206.55094277110211 618.3673469387755,206.49177922531248 633.8775510204081,206.78759695426066 649.3877551020408,206.96508759162953 664.8979591836735,207.02425113741913 680.4081632653061,207.1425782289984 695.9183673469388,207.3792324121569 711.4285714285714,207.67505014110503 726.9387755102041,207.79337723268426 742.4489795918367,208.0300314158428 757.9591836734694,208.08919496163242 773.469387755102,208.26668559900128 788.9795918367347,208.3258491447909 804.4897959183673,208.73999396531832 820.0,208.62166687373906" fill="none" stroke="#4ef0b0" stroke-width="2.5"/>
+      </svg>
+    </div>
+
+    <!-- Collapsible Log -->
+    <details style="border: 1px solid var(--border); border-radius: 8px; background: #090916;">
+      <summary style="font-family:'Space Mono',monospace; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 0.8rem 1rem; cursor: pointer; user-select: none; outline: none;">
+        <span>▶ Click to expand Exact Values Log (50 Epochs)</span>
+      </summary>
+      <div style="max-height: 180px; overflow-y: auto; padding: 1rem; border-top: 1px solid var(--border); display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.5rem; cursor: default;">
+        <div><span style="color:var(--muted)">Epoch 01 |</span> 1.2457</div>
+        <div><span style="color:var(--muted)">Epoch 02 |</span> 1.0624</div>
+        <div><span style="color:var(--muted)">Epoch 03 |</span> 1.0472</div>
+        <div><span style="color:var(--muted)">Epoch 04 |</span> 1.0446</div>
+        <div><span style="color:var(--muted)">Epoch 05 |</span> 1.0433</div>
+        <div><span style="color:var(--muted)">Epoch 06 |</span> 1.0424</div>
+        <div><span style="color:var(--muted)">Epoch 07 |</span> 1.0419</div>
+        <div><span style="color:var(--muted)">Epoch 08 |</span> 1.0416</div>
+        <div><span style="color:var(--muted)">Epoch 09 |</span> 1.0386</div>
+        <div><span style="color:var(--muted)">Epoch 10 |</span> 1.0248</div>
+        <div><span style="color:var(--muted)">Epoch 11 |</span> 0.9996</div>
+        <div><span style="color:var(--muted)">Epoch 12 |</span> 0.9605</div>
+        <div><span style="color:var(--muted)">Epoch 13 |</span> 0.9584</div>
+        <div><span style="color:var(--muted)">Epoch 14 |</span> 0.9580</div>
+        <div><span style="color:var(--muted)">Epoch 15 |</span> 0.9578</div>
+        <div><span style="color:var(--muted)">Epoch 16 |</span> 0.9575</div>
+        <div><span style="color:var(--muted)">Epoch 17 |</span> 0.9574</div>
+        <div><span style="color:var(--muted)">Epoch 18 |</span> 0.9573</div>
+        <div><span style="color:var(--muted)">Epoch 19 |</span> 0.9580</div>
+        <div><span style="color:var(--muted)">Epoch 20 |</span> 0.9570</div>
+        <div><span style="color:var(--muted)">Epoch 21 |</span> 0.9570</div>
+        <div><span style="color:var(--muted)">Epoch 22 |</span> 0.9570</div>
+        <div><span style="color:var(--muted)">Epoch 23 |</span> 0.9571</div>
+        <div><span style="color:var(--muted)">Epoch 24 |</span> 0.9569</div>
+        <div><span style="color:var(--muted)">Epoch 25 |</span> 0.9569</div>
+        <div><span style="color:var(--muted)">Epoch 26 |</span> 0.9578</div>
+        <div><span style="color:var(--muted)">Epoch 27 |</span> 0.9565</div>
+        <div><span style="color:var(--muted)">Epoch 28 |</span> 0.9563</div>
+        <div><span style="color:var(--muted)">Epoch 29 |</span> 0.9564</div>
+        <div><span style="color:var(--muted)">Epoch 30 |</span> 0.9564</div>
+        <div><span style="color:var(--muted)">Epoch 31 |</span> 0.9563</div>
+        <div><span style="color:var(--muted)">Epoch 32 |</span> 0.9559</div>
+        <div><span style="color:var(--muted)">Epoch 33 |</span> 0.9561</div>
+        <div><span style="color:var(--muted)">Epoch 34 |</span> 0.9558</div>
+        <div><span style="color:var(--muted)">Epoch 35 |</span> 0.9554</div>
+        <div><span style="color:var(--muted)">Epoch 36 |</span> 0.9553</div>
+        <div><span style="color:var(--muted)">Epoch 37 |</span> 0.9554</div>
+        <div><span style="color:var(--muted)">Epoch 38 |</span> 0.9549</div>
+        <div><span style="color:var(--muted)">Epoch 39 |</span> 0.9546</div>
+        <div><span style="color:var(--muted)">Epoch 40 |</span> 0.9545</div>
+        <div><span style="color:var(--muted)">Epoch 41 |</span> 0.9543</div>
+        <div><span style="color:var(--muted)">Epoch 42 |</span> 0.9539</div>
+        <div><span style="color:var(--muted)">Epoch 43 |</span> 0.9534</div>
+        <div><span style="color:var(--muted)">Epoch 44 |</span> 0.9532</div>
+        <div><span style="color:var(--muted)">Epoch 45 |</span> 0.9528</div>
+        <div><span style="color:var(--muted)">Epoch 46 |</span> 0.9527</div>
+        <div><span style="color:var(--muted)">Epoch 47 |</span> 0.9524</div>
+        <div><span style="color:var(--muted)">Epoch 48 |</span> 0.9523</div>
+        <div><span style="color:var(--muted)">Epoch 49 |</span> 0.9516</div>
+        <div><span style="color:var(--muted)">Epoch 50 |</span> 0.9518</div>
+      </div>
+    </details>
+  </div>
+
+  <!-- EXPERIMENT 2: V = 10 -->
+  <div class="card rv" style="margin-bottom:1.4rem;">
+    <h3>Experiment: V = 10</h3>
+    <div style="font-family:'Space Mono',monospace; font-size:11px; color:var(--muted); margin-bottom:1rem;">
+      <span class="badge bp">d=128, nhead=4, layers=2</span> &nbsp;|&nbsp; 50 epochs &nbsp;|&nbsp; Theoretical Floor: 1.5104
+    </div>
+
+    <!-- Accuracy Metrics Grid -->
+    <div class="g2" style="margin-bottom: 1.5rem;">
+      <div style="background: var(--surf); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; display: flex; flex-direction: column; justify-content: center;">
+        <div style="font-family:'Space Mono',monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Subgroup 1 (Pure Elimination) Accuracy</div>
+        <div style="font-size: 1.8rem; font-weight: bold; color: var(--green); line-height: 1.1;">100.00%</div>
+        <div style="font-family:'Space Mono',monospace; font-size: 11px; color: var(--muted); margin-top: 2px;">(2485 / 2485 test sequences)</div>
+      </div>
+      <div style="background: var(--surf); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; display: flex; flex-direction: column; justify-content: center;">
+        <div style="font-family:'Space Mono',monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Subgroup 2 (Pure Recall) Accuracy</div>
+        <div style="font-size: 1.8rem; font-weight: bold; color: var(--green); line-height: 1.1;">100.00%</div>
+        <div style="font-family:'Space Mono',monospace; font-size: 11px; color: var(--muted); margin-top: 2px;">(2515 / 2515 test sequences)</div>
+      </div>
+    </div>
+    
+    <!-- Loss Plot -->
+    <div style="margin: 1.5rem 0; background:var(--surf2); border:1px solid var(--border); border-radius:8px; padding:1rem;">
+      <svg viewBox="0 0 860 250" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:250px;">
+        <line x1="60" y1="198.13786864483444" x2="820" y2="198.13786864483444" stroke="#f5607a" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.8"/>
+        <text x="65" y="193.13786864483444" fill="#f5607a" font-size="10" font-family="Space Mono,monospace">Floor: 1.5104</text>
+        <text x="50" y="224.0" fill="#5a5a88" font-size="10" text-anchor="end" font-family="Space Mono,monospace">1.48</text>
+        <text x="50" y="202.13786864483444" fill="#5a5a88" font-size="10" text-anchor="end" font-family="Space Mono,monospace">1.51</text>
+        <text x="50" y="113.06893432241714" fill="#5a5a88" font-size="10" text-anchor="end" font-family="Space Mono,monospace">1.63</text>
+        <text x="50" y="24.0" fill="#5a5a88" font-size="10" text-anchor="end" font-family="Space Mono,monospace">1.76</text>
+        <line x1="60" y1="20" x2="60" y2="220" stroke="#3a3a60" stroke-width="1.5"/>
+        <line x1="60" y1="220" x2="820" y2="220" stroke="#3a3a60" stroke-width="1.5"/>
+        <text x="60.0" y="234" fill="#5a5a88" font-size="10" text-anchor="middle" font-family="Space Mono,monospace">1</text>
+        <text x="230.6122448979592" y="234" fill="#5a5a88" font-size="10" text-anchor="middle" font-family="Space Mono,monospace">12</text>
+        <text x="432.2448979591837" y="234" fill="#5a5a88" font-size="10" text-anchor="middle" font-family="Space Mono,monospace">25</text>
+        <text x="618.3673469387755" y="234" fill="#5a5a88" font-size="10" text-anchor="middle" font-family="Space Mono,monospace">37</text>
+        <text x="820.0" y="234" fill="#5a5a88" font-size="10" text-anchor="middle" font-family="Space Mono,monospace">50</text>
+        <polyline points="60.0,44.92636149810028 75.51020408163265,133.14781979373976 91.0204081632653,141.90483083046854 106.53061224489795,148.490682106025 122.0408163265306,158.6227609914963 137.55102040816325,170.99837163017907 153.0612244897959,178.8145467703999 168.57142857142856,182.65026234847107 184.0816326530612,185.32802605391709 199.59183673469389,186.48597792654243 215.10204081632654,186.99258187081594 230.6122448979592,187.86104577528496 246.12244897959184,190.538809480731 261.6326530612245,192.5652252578252 277.1428571428571,193.21657318617684 292.65306122448976,193.36131717025515 308.1632653061224,192.49285326578612 323.6734693877551,193.43368916229423 339.18367346938777,193.21657318617684 354.6938775510204,193.5060611543333 370.2040816326531,193.21657318617684 385.7142857142857,193.65080513841144 401.2244897959184,193.28894517821607 416.734693877551,193.0718292020987 432.2448979591837,193.7955491224896 447.7551020408163,193.86792111452866 463.26530612244903,193.7955491224896 478.77551020408157,194.15740908268495 494.2857142857143,195.24298896327122 509.7959183673469,195.38773294734935 525.3061224489795,195.6048489234666 540.8163265306123,194.66401302695846 556.3265306122448,195.38773294734935 571.8367346938776,195.5324769314275 587.3469387755102,195.38773294734935 602.8571428571429,195.5324769314275 618.3673469387755,195.6048489234666 633.8775510204081,195.67722091550564 649.3877551020408,195.67722091550564 664.8979591836735,194.8087570110368 680.4081632653061,195.6048489234666 695.9183673469388,195.67722091550564 711.4285714285714,195.46010493938843 726.9387755102041,195.74959290754472 742.4489795918367,195.74959290754472 757.9591836734694,195.8219648995838 773.469387755102,195.74959290754472 788.9795918367347,195.89433689162286 804.4897959183673,195.46010493938843 820.0,195.5324769314275" fill="none" stroke="#8b7cf8" stroke-width="2.5"/>
+      </svg>
+    </div>
+
+    <!-- Collapsible Log -->
+    <details style="border: 1px solid var(--border); border-radius: 8px; background: #090916;">
+      <summary style="font-family:'Space Mono',monospace; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 0.8rem 1rem; cursor: pointer; user-select: none; outline: none;">
+        <span>▶ Click to expand Exact Values Log (50 Epochs)</span>
+      </summary>
+      <div style="max-height: 180px; overflow-y: auto; padding: 1rem; border-top: 1px solid var(--border); display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.5rem; cursor: default;">
+        <div><span style="color:var(--muted)">Epoch 01 |</span> 1.7221</div>
+        <div><span style="color:var(--muted)">Epoch 02 |</span> 1.6002</div>
+        <div><span style="color:var(--muted)">Epoch 03 |</span> 1.5881</div>
+        <div><span style="color:var(--muted)">Epoch 04 |</span> 1.5790</div>
+        <div><span style="color:var(--muted)">Epoch 05 |</span> 1.5650</div>
+        <div><span style="color:var(--muted)">Epoch 06 |</span> 1.5479</div>
+        <div><span style="color:var(--muted)">Epoch 07 |</span> 1.5371</div>
+        <div><span style="color:var(--muted)">Epoch 08 |</span> 1.5318</div>
+        <div><span style="color:var(--muted)">Epoch 09 |</span> 1.5281</div>
+        <div><span style="color:var(--muted)">Epoch 10 |</span> 1.5265</div>
+        <div><span style="color:var(--muted)">Epoch 11 |</span> 1.5258</div>
+        <div><span style="color:var(--muted)">Epoch 12 |</span> 1.5246</div>
+        <div><span style="color:var(--muted)">Epoch 13 |</span> 1.5209</div>
+        <div><span style="color:var(--muted)">Epoch 14 |</span> 1.5181</div>
+        <div><span style="color:var(--muted)">Epoch 15 |</span> 1.5172</div>
+        <div><span style="color:var(--muted)">Epoch 16 |</span> 1.5170</div>
+        <div><span style="color:var(--muted)">Epoch 17 |</span> 1.5182</div>
+        <div><span style="color:var(--muted)">Epoch 18 |</span> 1.5169</div>
+        <div><span style="color:var(--muted)">Epoch 19 |</span> 1.5172</div>
+        <div><span style="color:var(--muted)">Epoch 20 |</span> 1.5168</div>
+        <div><span style="color:var(--muted)">Epoch 21 |</span> 1.5172</div>
+        <div><span style="color:var(--muted)">Epoch 22 |</span> 1.5166</div>
+        <div><span style="color:var(--muted)">Epoch 23 |</span> 1.5171</div>
+        <div><span style="color:var(--muted)">Epoch 24 |</span> 1.5174</div>
+        <div><span style="color:var(--muted)">Epoch 25 |</span> 1.5164</div>
+        <div><span style="color:var(--muted)">Epoch 26 |</span> 1.5163</div>
+        <div><span style="color:var(--muted)">Epoch 27 |</span> 1.5164</div>
+        <div><span style="color:var(--muted)">Epoch 28 |</span> 1.5159</div>
+        <div><span style="color:var(--muted)">Epoch 29 |</span> 1.5144</div>
+        <div><span style="color:var(--muted)">Epoch 30 |</span> 1.5142</div>
+        <div><span style="color:var(--muted)">Epoch 31 |</span> 1.5139</div>
+        <div><span style="color:var(--muted)">Epoch 32 |</span> 1.5152</div>
+        <div><span style="color:var(--muted)">Epoch 33 |</span> 1.5142</div>
+        <div><span style="color:var(--muted)">Epoch 34 |</span> 1.5140</div>
+        <div><span style="color:var(--muted)">Epoch 35 |</span> 1.5142</div>
+        <div><span style="color:var(--muted)">Epoch 36 |</span> 1.5140</div>
+        <div><span style="color:var(--muted)">Epoch 37 |</span> 1.5139</div>
+        <div><span style="color:var(--muted)">Epoch 38 |</span> 1.5138</div>
+        <div><span style="color:var(--muted)">Epoch 39 |</span> 1.5138</div>
+        <div><span style="color:var(--muted)">Epoch 40 |</span> 1.5150</div>
+        <div><span style="color:var(--muted)">Epoch 41 |</span> 1.5139</div>
+        <div><span style="color:var(--muted)">Epoch 42 |</span> 1.5138</div>
+        <div><span style="color:var(--muted)">Epoch 43 |</span> 1.5141</div>
+        <div><span style="color:var(--muted)">Epoch 44 |</span> 1.5137</div>
+        <div><span style="color:var(--muted)">Epoch 45 |</span> 1.5137</div>
+        <div><span style="color:var(--muted)">Epoch 46 |</span> 1.5136</div>
+        <div><span style="color:var(--muted)">Epoch 47 |</span> 1.5137</div>
+        <div><span style="color:var(--muted)">Epoch 48 |</span> 1.5135</div>
+        <div><span style="color:var(--muted)">Epoch 49 |</span> 1.5141</div>
+        <div><span style="color:var(--muted)">Epoch 50 |</span> 1.5140</div>
+      </div>
+    </details>
+  </div>
+
+  <!-- EXPERIMENT 3: V = 15 -->
+  <div class="card rv" style="margin-bottom:1.4rem;">
+    <h3>Experiment: V = 15</h3>
+    <div style="font-family:'Space Mono',monospace; font-size:11px; color:var(--muted); margin-bottom:1rem;">
+      <span class="badge by">d=256, nhead=4, layers=2</span> &nbsp;|&nbsp; 120 epochs &nbsp;|&nbsp; Theoretical Floor: 1.8600
+    </div>
+
+    <!-- Accuracy Metrics Grid -->
+    <div class="g2" style="margin-bottom: 1.5rem;">
+      <div style="background: var(--surf); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; display: flex; flex-direction: column; justify-content: center;">
+        <div style="font-family:'Space Mono',monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Subgroup 1 (Pure Elimination) Accuracy</div>
+        <div style="font-size: 1.8rem; font-weight: bold; color: var(--green); line-height: 1.1;">100.00%</div>
+        <div style="font-family:'Space Mono',monospace; font-size: 11px; color: var(--muted); margin-top: 2px;">(2548 / 2548 test sequences)</div>
+      </div>
+      <div style="background: var(--surf); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; display: flex; flex-direction: column; justify-content: center;">
+        <div style="font-family:'Space Mono',monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Subgroup 2 (Pure Recall) Accuracy</div>
+        <div style="font-size: 1.8rem; font-weight: bold; color: var(--green); line-height: 1.1;">99.76%</div>
+        <div style="font-family:'Space Mono',monospace; font-size: 11px; color: var(--muted); margin-top: 2px;">(2446 / 2452 test sequences)</div>
+      </div>
+    </div>
+    
+    <!-- Loss Plot -->
+    <div style="margin: 1.5rem 0; background:var(--surf2); border:1px solid var(--border); border-radius:8px; padding:1rem;">
+      <svg viewBox="0 0 860 250" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:250px;">
+        <line x1="60" y1="190.95610624443708" x2="820" y2="190.95610624443708" stroke="#f5607a" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.8"/>
+        <text x="65" y="185.95610624443708" fill="#f5607a" font-size="10" font-family="Space Mono,monospace">Floor: 1.8600</text>
+        <text x="50" y="224.0" fill="#5a5a88" font-size="10" text-anchor="end" font-family="Space Mono,monospace">1.82</text>
+        <text x="50" y="194.95610624443708" fill="#5a5a88" font-size="10" text-anchor="end" font-family="Space Mono,monospace">1.86</text>
+        <text x="50" y="109.47805312221845" fill="#5a5a88" font-size="10" text-anchor="end" font-family="Space Mono,monospace">1.97</text>
+        <text x="50" y="24.0" fill="#5a5a88" font-size="10" text-anchor="end" font-family="Space Mono,monospace">2.08</text>
+        <line x1="60" y1="20" x2="60" y2="220" stroke="#3a3a60" stroke-width="1.5"/>
+        <line x1="60" y1="220" x2="820" y2="220" stroke="#3a3a60" stroke-width="1.5"/>
+        <text x="60.0" y="234" fill="#5a5a88" font-size="10" text-anchor="middle" font-family="Space Mono,monospace">1</text>
+        <text x="245.21008403361344" y="234" fill="#5a5a88" font-size="10" text-anchor="middle" font-family="Space Mono,monospace">30</text>
+        <text x="436.8067226890756" y="234" fill="#5a5a88" font-size="10" text-anchor="middle" font-family="Space Mono,monospace">60</text>
+        <text x="628.4033613445379" y="234" fill="#5a5a88" font-size="10" text-anchor="middle" font-family="Space Mono,monospace">90</text>
+        <text x="820.0" y="234" fill="#5a5a88" font-size="10" text-anchor="middle" font-family="Space Mono,monospace">120</text>
+        <polyline points="60.0,51.82648615730565 66.38655462184875,130.99451913617833 72.77310924369748,140.91004200434105 79.15966386554622,151.99668962071178 85.54621848739495,158.78921316031918 91.9327731092437,160.89723770709384 98.31932773109244,162.61488733779913 104.70588235294117,164.722911884574 111.0924369747899,165.73788666635429 117.47899159663865,166.36248653206542 123.8655462184874,166.83093643134862 130.25210084033614,166.9090114145625 136.6386554621849,167.06516138099025 143.02521008403363,167.92398619634298 149.41176470588235,168.00206117955688 155.7983193277311,168.31436111241234 162.1848739495798,168.3924360956262 168.57142857142856,168.54858606205397 174.9579831932773,169.48548586062057 181.34453781512605,170.81276057525653 187.7310924369748,171.125060508112 194.11764705882354,171.28121047453976 200.50420168067228,171.4373604409675 206.89075630252103,170.1881607095454 213.27731092436974,172.60848518917572 219.6638655462185,174.09190987023942 226.05042016806723,174.63843475273652 232.43697478991598,175.34110960166151 238.8235294117647,175.88763448415858 245.21008403361344,175.49725956808925 251.5966386554622,177.83950906450553 257.98319327731093,179.32293374556923 264.3697478991596,179.9475336112802 270.7563025210084,180.49405849377746 277.1428571428571,180.33790852734973 283.52941176470586,179.79138364485243 289.9159663865546,180.57213347699133 296.30252100840335,180.8844334098468 302.6890756302521,179.55715869521083 309.07563025210084,181.04058337627453 315.4621848739496,181.1186583594884 321.8487394957983,181.1186583594884 328.2352941176471,181.27480832591615 334.6218487394958,175.49725956808925 341.00840336134456,181.97748317484115 347.39495798319325,182.9143829734076 353.78151260504205,183.8512827719742 360.16806722689074,184.16358270482968 366.5546218487395,184.6320326041129 372.94117647058823,184.55395762089904 379.327731092437,186.03738230196274 385.7142857142857,187.75503193266806 392.10084033613447,188.45770678159306 398.4873949579832,188.53578176480693 404.87394957983196,188.45770678159306 411.2605042016807,187.91118189909596 417.6470588235294,188.6138567480208 424.0336134453782,188.45770678159306 430.4201680672269,187.75503193266806 436.8067226890756,188.30155681516533 443.1932773109244,188.6138567480208 449.57983193277306,188.6138567480208 455.96638655462186,188.69193173123466 462.3529411764706,186.97428210052936 468.7394957983193,187.52080698302643 475.12605042016804,188.22348183195143 481.51260504201684,188.0673318655237 487.89915966386553,188.22348183195143 494.2857142857143,188.1454068487376 500.6722689075631,188.1454068487376 507.05882352941177,188.6138567480208 513.4453781512605,188.8480816976624 519.8319327731092,188.69193173123466 526.218487394958,188.69193173123466 532.6050420168067,188.8480816976624 538.9915966386554,188.77000671444853 545.3781512605042,186.58390718446 551.7647058823529,188.6138567480208 558.1512605042017,188.8480816976624 564.5378151260504,188.30155681516533 570.9243697478992,188.9261566808763 577.3109243697479,188.9261566808763 583.6974789915967,188.8480816976624 590.0840336134454,188.53578176480693 596.4705882352941,188.9261566808763 602.8571428571429,188.8480816976624 609.2436974789916,188.9261566808763 615.6302521008403,188.8480816976624 622.0168067226891,187.05235708374323 628.4033613445379,187.75503193266806 634.7899159663865,188.22348183195143 641.1764705882352,188.53578176480693 647.5630252100841,188.6138567480208 653.9495798319327,188.6138567480208 660.3361344537815,188.77000671444853 666.7226890756303,188.77000671444853 673.109243697479,188.77000671444853 679.4957983193277,188.8480816976624 685.8823529411765,188.77000671444853 692.2689075630252,188.45770678159306 698.655462184874,188.9261566808763 705.0420168067227,188.69193173123466 711.4285714285714,183.46090785590485 717.8151260504202,185.3347074530379 724.2016806722689,185.6470073858934 730.5882352941177,186.03738230196274 736.9747899159664,187.67695694945417 743.3613445378152,188.0673318655237 749.7478991596639,188.1454068487376 756.1344537815125,187.91118189909596 762.5210084033614,188.53578176480693 768.9075630252102,188.8480816976624 775.2941176470588,188.6138567480208 781.6806722689075,188.8480816976624 788.0672268907564,188.8480816976624 794.453781512605,189.00423166409013 800.8403361344538,188.8480816976624 807.2268907563025,188.9261566808763 813.6134453781513,189.00423166409013 820.0,189.00423166409013" fill="none" stroke="#f5c842" stroke-width="2.5"/>
+      </svg>
+    </div>
+
+    <!-- Collapsible Log -->
+    <details style="border: 1px solid var(--border); border-radius: 8px; background: #090916;">
+      <summary style="font-family:'Space Mono',monospace; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 0.8rem 1rem; cursor: pointer; user-select: none; outline: none;">
+        <span>▶ Click to expand Exact Values Log (120 Epochs)</span>
+      </summary>
+      <div style="max-height: 180px; overflow-y: auto; padding: 1rem; border-top: 1px solid var(--border); display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.5rem; cursor: default;">
+        <div><span style="color:var(--muted)">Epoch 01 |</span> 2.0382</div>
+        <div><span style="color:var(--muted)">Epoch 02 |</span> 1.9368</div>
+        <div><span style="color:var(--muted)">Epoch 03 |</span> 1.9241</div>
+        <div><span style="color:var(--muted)">Epoch 04 |</span> 1.9099</div>
+        <div><span style="color:var(--muted)">Epoch 05 |</span> 1.9012</div>
+        <div><span style="color:var(--muted)">Epoch 06 |</span> 1.8985</div>
+        <div><span style="color:var(--muted)">Epoch 07 |</span> 1.8963</div>
+        <div><span style="color:var(--muted)">Epoch 08 |</span> 1.8936</div>
+        <div><span style="color:var(--muted)">Epoch 09 |</span> 1.8923</div>
+        <div><span style="color:var(--muted)">Epoch 10 |</span> 1.8915</div>
+        <div><span style="color:var(--muted)">Epoch 11 |</span> 1.8909</div>
+        <div><span style="color:var(--muted)">Epoch 12 |</span> 1.8908</div>
+        <div><span style="color:var(--muted)">Epoch 13 |</span> 1.8906</div>
+        <div><span style="color:var(--muted)">Epoch 14 |</span> 1.8895</div>
+        <div><span style="color:var(--muted)">Epoch 15 |</span> 1.8894</div>
+        <div><span style="color:var(--muted)">Epoch 16 |</span> 1.8890</div>
+        <div><span style="color:var(--muted)">Epoch 17 |</span> 1.8889</div>
+        <div><span style="color:var(--muted)">Epoch 18 |</span> 1.8887</div>
+        <div><span style="color:var(--muted)">Epoch 19 |</span> 1.8875</div>
+        <div><span style="color:var(--muted)">Epoch 20 |</span> 1.8858</div>
+        <div><span style="color:var(--muted)">Epoch 21 |</span> 1.8854</div>
+        <div><span style="color:var(--muted)">Epoch 22 |</span> 1.8852</div>
+        <div><span style="color:var(--muted)">Epoch 23 |</span> 1.8850</div>
+        <div><span style="color:var(--muted)">Epoch 24 |</span> 1.8866</div>
+        <div><span style="color:var(--muted)">Epoch 25 |</span> 1.8835</div>
+        <div><span style="color:var(--muted)">Epoch 26 |</span> 1.8816</div>
+        <div><span style="color:var(--muted)">Epoch 27 |</span> 1.8809</div>
+        <div><span style="color:var(--muted)">Epoch 28 |</span> 1.8800</div>
+        <div><span style="color:var(--muted)">Epoch 29 |</span> 1.8793</div>
+        <div><span style="color:var(--muted)">Epoch 30 |</span> 1.8798</div>
+        <div><span style="color:var(--muted)">Epoch 31 |</span> 1.8768</div>
+        <div><span style="color:var(--muted)">Epoch 32 |</span> 1.8749</div>
+        <div><span style="color:var(--muted)">Epoch 33 |</span> 1.8741</div>
+        <div><span style="color:var(--muted)">Epoch 34 |</span> 1.8734</div>
+        <div><span style="color:var(--muted)">Epoch 35 |</span> 1.8736</div>
+        <div><span style="color:var(--muted)">Epoch 36 |</span> 1.8743</div>
+        <div><span style="color:var(--muted)">Epoch 37 |</span> 1.8733</div>
+        <div><span style="color:var(--muted)">Epoch 38 |</span> 1.8729</div>
+        <div><span style="color:var(--muted)">Epoch 39 |</span> 1.8746</div>
+        <div><span style="color:var(--muted)">Epoch 40 |</span> 1.8727</div>
+        <div><span style="color:var(--muted)">Epoch 41 |</span> 1.8726</div>
+        <div><span style="color:var(--muted)">Epoch 42 |</span> 1.8726</div>
+        <div><span style="color:var(--muted)">Epoch 43 |</span> 1.8724</div>
+        <div><span style="color:var(--muted)">Epoch 44 |</span> 1.8798</div>
+        <div><span style="color:var(--muted)">Epoch 45 |</span> 1.8715</div>
+        <div><span style="color:var(--muted)">Epoch 46 |</span> 1.8703</div>
+        <div><span style="color:var(--muted)">Epoch 47 |</span> 1.8691</div>
+        <div><span style="color:var(--muted)">Epoch 48 |</span> 1.8687</div>
+        <div><span style="color:var(--muted)">Epoch 49 |</span> 1.8681</div>
+        <div><span style="color:var(--muted)">Epoch 50 |</span> 1.8682</div>
+        <div><span style="color:var(--muted)">Epoch 51 |</span> 1.8663</div>
+        <div><span style="color:var(--muted)">Epoch 52 |</span> 1.8641</div>
+        <div><span style="color:var(--muted)">Epoch 53 |</span> 1.8632</div>
+        <div><span style="color:var(--muted)">Epoch 54 |</span> 1.8631</div>
+        <div><span style="color:var(--muted)">Epoch 55 |</span> 1.8632</div>
+        <div><span style="color:var(--muted)">Epoch 56 |</span> 1.8639</div>
+        <div><span style="color:var(--muted)">Epoch 57 |</span> 1.8630</div>
+        <div><span style="color:var(--muted)">Epoch 58 |</span> 1.8632</div>
+        <div><span style="color:var(--muted)">Epoch 59 |</span> 1.8641</div>
+        <div><span style="color:var(--muted)">Epoch 60 |</span> 1.8634</div>
+        <div><span style="color:var(--muted)">Epoch 61 |</span> 1.8630</div>
+        <div><span style="color:var(--muted)">Epoch 62 |</span> 1.8630</div>
+        <div><span style="color:var(--muted)">Epoch 63 |</span> 1.8629</div>
+        <div><span style="color:var(--muted)">Epoch 64 |</span> 1.8651</div>
+        <div><span style="color:var(--muted)">Epoch 65 |</span> 1.8644</div>
+        <div><span style="color:var(--muted)">Epoch 66 |</span> 1.8635</div>
+        <div><span style="color:var(--muted)">Epoch 67 |</span> 1.8637</div>
+        <div><span style="color:var(--muted)">Epoch 68 |</span> 1.8635</div>
+        <div><span style="color:var(--muted)">Epoch 69 |</span> 1.8636</div>
+        <div><span style="color:var(--muted)">Epoch 70 |</span> 1.8636</div>
+        <div><span style="color:var(--muted)">Epoch 71 |</span> 1.8630</div>
+        <div><span style="color:var(--muted)">Epoch 72 |</span> 1.8627</div>
+        <div><span style="color:var(--muted)">Epoch 73 |</span> 1.8629</div>
+        <div><span style="color:var(--muted)">Epoch 74 |</span> 1.8629</div>
+        <div><span style="color:var(--muted)">Epoch 75 |</span> 1.8627</div>
+        <div><span style="color:var(--muted)">Epoch 76 |</span> 1.8628</div>
+        <div><span style="color:var(--muted)">Epoch 77 |</span> 1.8656</div>
+        <div><span style="color:var(--muted)">Epoch 78 |</span> 1.8630</div>
+        <div><span style="color:var(--muted)">Epoch 79 |</span> 1.8627</div>
+        <div><span style="color:var(--muted)">Epoch 80 |</span> 1.8634</div>
+        <div><span style="color:var(--muted)">Epoch 81 |</span> 1.8626</div>
+        <div><span style="color:var(--muted)">Epoch 82 |</span> 1.8626</div>
+        <div><span style="color:var(--muted)">Epoch 83 |</span> 1.8627</div>
+        <div><span style="color:var(--muted)">Epoch 84 |</span> 1.8631</div>
+        <div><span style="color:var(--muted)">Epoch 85 |</span> 1.8626</div>
+        <div><span style="color:var(--muted)">Epoch 86 |</span> 1.8627</div>
+        <div><span style="color:var(--muted)">Epoch 87 |</span> 1.8626</div>
+        <div><span style="color:var(--muted)">Epoch 88 |</span> 1.8627</div>
+        <div><span style="color:var(--muted)">Epoch 89 |</span> 1.8650</div>
+        <div><span style="color:var(--muted)">Epoch 90 |</span> 1.8641</div>
+        <div><span style="color:var(--muted)">Epoch 91 |</span> 1.8635</div>
+        <div><span style="color:var(--muted)">Epoch 92 |</span> 1.8631</div>
+        <div><span style="color:var(--muted)">Epoch 93 |</span> 1.8630</div>
+        <div><span style="color:var(--muted)">Epoch 94 |</span> 1.8630</div>
+        <div><span style="color:var(--muted)">Epoch 95 |</span> 1.8628</div>
+        <div><span style="color:var(--muted)">Epoch 96 |</span> 1.8628</div>
+        <div><span style="color:var(--muted)">Epoch 97 |</span> 1.8628</div>
+        <div><span style="color:var(--muted)">Epoch 98 |</span> 1.8627</div>
+        <div><span style="color:var(--muted)">Epoch 99 |</span> 1.8628</div>
+        <div><span style="color:var(--muted)">Epoch 100 |</span> 1.8632</div>
+        <div><span style="color:var(--muted)">Epoch 101 |</span> 1.8626</div>
+        <div><span style="color:var(--muted)">Epoch 102 |</span> 1.8629</div>
+        <div><span style="color:var(--muted)">Epoch 103 |</span> 1.8696</div>
+        <div><span style="color:var(--muted)">Epoch 104 |</span> 1.8672</div>
+        <div><span style="color:var(--muted)">Epoch 105 |</span> 1.8668</div>
+        <div><span style="color:var(--muted)">Epoch 106 |</span> 1.8663</div>
+        <div><span style="color:var(--muted)">Epoch 107 |</span> 1.8642</div>
+        <div><span style="color:var(--muted)">Epoch 108 |</span> 1.8637</div>
+        <div><span style="color:var(--muted)">Epoch 109 |</span> 1.8636</div>
+        <div><span style="color:var(--muted)">Epoch 110 |</span> 1.8639</div>
+        <div><span style="color:var(--muted)">Epoch 111 |</span> 1.8631</div>
+        <div><span style="color:var(--muted)">Epoch 112 |</span> 1.8627</div>
+        <div><span style="color:var(--muted)">Epoch 113 |</span> 1.8630</div>
+        <div><span style="color:var(--muted)">Epoch 114 |</span> 1.8627</div>
+        <div><span style="color:var(--muted)">Epoch 115 |</span> 1.8627</div>
+        <div><span style="color:var(--muted)">Epoch 116 |</span> 1.8625</div>
+        <div><span style="color:var(--muted)">Epoch 117 |</span> 1.8627</div>
+        <div><span style="color:var(--muted)">Epoch 118 |</span> 1.8626</div>
+        <div><span style="color:var(--muted)">Epoch 119 |</span> 1.8625</div>
+        <div><span style="color:var(--muted)">Epoch 120 |</span> 1.8625</div>
+      </div>
+    </details>
+  </div>
+
+</div>
+</section>
+
 <div style="height:56px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:center;">
   <span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.1em;">Task 1: d=16, nhead=1, 1 layer, normal data, 20 epochs &nbsp;|&nbsp; Task 2: d=32, nhead=2, 1 layer, repeated data (ratio=0.3), 50 epochs</span>
 </div>
